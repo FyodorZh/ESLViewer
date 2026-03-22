@@ -1,0 +1,263 @@
+/* ── Reset & base ────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+    height: 100%;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    font-size: 14px;
+    background: #f0f2f5;
+    color: #1a1a2e;
+}
+
+/* ── App shell ───────────────────────────────────────────── */
+.app-layout {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+}
+
+.app-header {
+    background: #1a1a2e;
+    color: #fff;
+    padding: 0.55rem 1.2rem;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.app-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+}
+
+.app-main {
+    flex: 1;
+    overflow: auto;
+    padding: 0.8rem;
+}
+
+/* ── Toolbar (PlotGrid) ──────────────────────────────────── */
+.plot-grid-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.8rem;
+    padding: 0.5rem 0.8rem;
+    background: #fff;
+    border-radius: 6px;
+    box-shadow: 0 1px 3px rgba(0,0,0,.12);
+}
+
+.plot-grid-toolbar label {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.85rem;
+    color: #444;
+}
+
+.plot-grid-toolbar select,
+.plot-grid-toolbar input[type=range] {
+    cursor: pointer;
+}
+
+/* ── Grid layout ─────────────────────────────────────────── */
+.plot-grid {
+    display: grid;
+    gap: 0.8rem;
+    align-items: start;
+}
+
+/* ── Plot panel ──────────────────────────────────────────── */
+.plot-panel {
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,.10);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    /* allow manual resize */
+    resize: both;
+    min-width: 260px;
+    min-height: 320px;
+}
+
+.plot-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.45rem 0.7rem;
+    background: #f7f8fa;
+    border-bottom: 1px solid #e2e6ea;
+    flex-shrink: 0;
+}
+
+.plot-title-input {
+    flex: 1;
+    border: none;
+    background: transparent;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #1a1a2e;
+    outline: none;
+    min-width: 0;
+}
+
+.plot-title-input:hover,
+.plot-title-input:focus {
+    background: #eef0f3;
+    border-radius: 4px;
+    padding: 0 4px;
+}
+
+.plot-chart-area {
+    flex: 1;
+    position: relative;
+    min-height: 0;
+}
+
+.plot-loading,
+.plot-error {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.9rem;
+    background: rgba(255,255,255,.8);
+    z-index: 10;
+}
+
+.plot-error { color: #c0392b; }
+
+/* ── Expression editor ───────────────────────────────────── */
+.expr-editor {
+    padding: 0.5rem 0.7rem;
+    border-top: 1px solid #e2e6ea;
+    background: #fafbfc;
+    flex-shrink: 0;
+}
+
+.expr-row {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    margin-bottom: 0.35rem;
+}
+
+.expr-color-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    border: 1px solid rgba(0,0,0,.15);
+}
+
+.expr-input {
+    flex: 1;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    padding: 0.28rem 0.45rem;
+    font-size: 0.82rem;
+    font-family: 'Courier New', monospace;
+    min-width: 0;
+    outline: none;
+    transition: border-color .15s;
+}
+
+.expr-input:focus { border-color: #1b6ec2; box-shadow: 0 0 0 2px rgba(27,110,194,.2); }
+
+.expr-color {
+    width: 28px;
+    height: 26px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    padding: 0;
+    flex-shrink: 0;
+}
+
+.expr-toggle {
+    cursor: pointer;
+    flex-shrink: 0;
+    width: 15px;
+    height: 15px;
+}
+
+.expr-actions {
+    display: flex;
+    gap: 0.4rem;
+    margin-top: 0.3rem;
+}
+
+/* ── Buttons ─────────────────────────────────────────────── */
+.btn-sm {
+    padding: 0.28rem 0.7rem;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    font-weight: 500;
+    transition: filter .15s;
+}
+.btn-sm:hover { filter: brightness(0.9); }
+
+.btn-primary  { background: #1b6ec2; color: #fff; }
+.btn-secondary { background: #6c757d; color: #fff; }
+
+.btn-icon {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    font-size: 0.85rem;
+    padding: 0.1rem 0.35rem;
+    border-radius: 3px;
+    line-height: 1;
+    transition: background .15s;
+}
+.btn-icon:hover { background: rgba(0,0,0,.08); }
+.btn-danger { color: #c0392b; }
+
+/* ── Blazor error UI ─────────────────────────────────────── */
+#blazor-error-ui {
+    background: lightyellow;
+    bottom: 0; left: 0;
+    position: fixed;
+    width: 100%;
+    padding: 0.6rem 1.25rem;
+    display: none;
+    z-index: 1000;
+    box-shadow: 0 -1px 2px rgba(0,0,0,.2);
+}
+#blazor-error-ui .dismiss { position: absolute; right: .75rem; top: .5rem; cursor: pointer; }
+
+.loading-progress {
+    position: absolute;
+    display: block;
+    width: 8rem; height: 8rem;
+    inset: 20vh 0 auto 0;
+    margin: 0 auto;
+}
+.loading-progress circle {
+    fill: none;
+    stroke: #e0e0e0;
+    stroke-width: 0.6rem;
+    transform-origin: 50% 50%;
+    transform: rotate(-90deg);
+}
+.loading-progress circle:last-child {
+    stroke: #1b6ec2;
+    stroke-dasharray: calc(3.141 * var(--blazor-load-percentage, 0%) * 0.8), 500%;
+    transition: stroke-dasharray .05s ease-in-out;
+}
+.loading-progress-text {
+    position: absolute;
+    text-align: center;
+    font-weight: bold;
+    inset: calc(20vh + 3.25rem) 0 auto .2rem;
+}
+.loading-progress-text::after { content: var(--blazor-load-percentage-text, "Loading"); }

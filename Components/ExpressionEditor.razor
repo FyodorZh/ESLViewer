@@ -1,0 +1,62 @@
+@using ESLPlotter.Models
+
+<div class="expr-editor">
+    @foreach (var expr in Expressions)
+    {
+        var current = expr;
+        <div class="expr-row">
+            <span class="expr-color-dot" style="background:@current.Color;"></span>
+            <input class="expr-input"
+                   type="text"
+                   placeholder="e.g. x^2"
+                   value="@current.Expression"
+                   @oninput="e => current.Expression = e.Value?.ToString() ?? string.Empty"
+                   @onkeydown="e => OnKeyDown(e, current)" />
+            <input class="expr-color"
+                   type="color"
+                   value="@current.Color"
+                   title="Series color"
+                   @oninput="e => { current.Color = e.Value?.ToString() ?? current.Color; OnColorChanged.InvokeAsync(); }" />
+            <input class="expr-toggle"
+                   type="checkbox"
+                   checked="@current.IsEnabled"
+                   title="Show/hide series"
+                   @onchange="e => { current.IsEnabled = (bool)(e.Value ?? true); OnColorChanged.InvokeAsync(); }" />
+            <button class="btn-icon btn-danger" title="Remove" @onclick="() => Remove(current)">&#x2715;</button>
+        </div>
+    }
+    <div class="expr-actions">
+        <button class="btn-sm btn-secondary" @onclick="AddExpression">+ Add expression</button>
+        <button class="btn-sm btn-primary" @onclick="() => OnRefresh.InvokeAsync()">&#8635; Refresh</button>
+    </div>
+</div>
+
+@code {
+    [Parameter] public List<ExpressionModel> Expressions { get; set; } = new();
+    [Parameter] public EventCallback OnRefresh { get; set; }
+    [Parameter] public EventCallback OnColorChanged { get; set; }
+
+    private static readonly string[] DefaultColors =
+    {
+        "#1b6ec2", "#e03030", "#28a745", "#fd7e14",
+        "#6f42c1", "#20c997", "#dc3545", "#0dcaf0"
+    };
+
+    private void AddExpression()
+    {
+        var color = DefaultColors[Expressions.Count % DefaultColors.Length];
+        Expressions.Add(new ExpressionModel { Color = color, Label = $"f{Expressions.Count + 1}" });
+    }
+
+    private void Remove(ExpressionModel expr)
+    {
+        Expressions.Remove(expr);
+        OnRefresh.InvokeAsync();
+    }
+
+    private void OnKeyDown(KeyboardEventArgs e, ExpressionModel expr)
+    {
+        if (e.Key == "Enter")
+            OnRefresh.InvokeAsync();
+    }
+}

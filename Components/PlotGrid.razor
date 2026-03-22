@@ -1,0 +1,51 @@
+@using ESLPlotter.Models
+
+<div class="plot-grid-toolbar">
+    <label>
+        Columns:
+        <select @bind="_columns">
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="4">4</option>
+        </select>
+    </label>
+    <label>
+        Plot size:
+        <input type="range" min="280" max="900" step="20" @bind="_plotSize" />
+        <span>@_plotSize px</span>
+    </label>
+    <button class="btn-sm btn-primary" @onclick="AddPlot">+ Add plot</button>
+</div>
+
+<div class="plot-grid" style="grid-template-columns: repeat(@_columns, @(_plotSize)px);">
+    @foreach (var plot in _plots)
+    {
+        var current = plot;
+        <PlotPanel Plot="current"
+                   Width="_plotSize"
+                   Height="@(_plotSize - 80)"
+                   OnRemove="RemovePlot" />
+    }
+</div>
+
+@code {
+    private List<PlotModel> _plots = new();
+    private int _columns = 2;
+    private int _plotSize = 500;
+
+    protected override void OnInitialized()
+    {
+        _plots.Add(new PlotModel { Title = "Plot 1" });
+    }
+
+    private void AddPlot()
+    {
+        _plots.Add(new PlotModel { Title = $"Plot {_plots.Count + 1}" });
+    }
+
+    private void RemovePlot(PlotModel plot)
+    {
+        _plots.Remove(plot);
+    }
+}

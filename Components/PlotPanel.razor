@@ -1,0 +1,117 @@
+@using ESLPlotter.Models
+@using ESLPlotter.Services
+@using LiveChartsCore
+@using LiveChartsCore.SkiaSharpView
+@using LiveChartsCore.SkiaSharpView.Blazor
+@using LiveChartsCore.SkiaSharpView.Painting
+@using LiveChartsCore.Measure
+@using SkiaSharp
+@inject MathServerService MathServer
+
+<div class="plot-panel" style="width:@(Width)px; height:@(Height)px;">
+    <div class="plot-header">
+        <input class="plot-title-input" type="text" @bind="Plot.Title" @bind:event="oninput" />
+        <button class="btn-icon btn-danger" title="Remove plot" @onclick="() => OnRemove.InvokeAsync(Plot)">&#x2715;</button>
+    </div>
+
+    <div class="plot-chart-area">
+        @if (_loading)
+        {
+            <div class="plot-loading">Loading&#8230;</div>
+        }
+        @if (_error is not null)
+        {
+            <div class="plot-error">@_error</div>
+        }
+        <CartesianChart
+            Series="_series"
+            XAxes="_xAxes"
+            YAxes="_yAxes"
+            ZoomMode="ZoomAndPanMode.Both"
+            LegendPosition="LegendPosition.Bottom" />
+    </div>
+
+    <ExpressionEditor Expressions="Plot.Expressions.ToList()"
+                      OnRefresh="RefreshAsync"
+                      OnColorChanged="RebuildSeries" />
+</div>
+
+@code {
+    [Parameter] public PlotModel Plot { get; set; } = default!;
+    [Parameter] public int Width { get; set; } = 500;
+    [Parameter] public int Height { get; set; } = 420;
+    [Parameter] public EventCallback<PlotModel> OnRemove { get; set; }
+
+    private ISeries[] _series = Array.Empty<ISeries>();
+    private Axis[] _xAxes = new[] { new Axis { Name = "x" } };
+    private Axis[] _yAxes = new[] { new Axis { Name = "y" } };
+    private bool _loading;
+    private string? _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Plot.Expressions.Count == 0)
+            Plot.Expressions.Add(new ExpressionModel { Expression = "x^2", Color = "#1b6ec2", Label = "f1" });
+
+        await RefreshAsync();
+    }
+
+    public async Task RefreshAsync()
+    {
+        _loading = true;
+        _error = null;
+        StateHasChanged();
+
+        try
+        {
+            foreach (var expr in Plot.Expressions)
+            {
+                if (!string.IsNullOrWhiteSpace(expr.Expression))
+                    expr.Points = await MathServer.EvaluateAsync(expr.Expression);
+            }
+        }
+        catch (Exception ex)
+        {
+            _error = $"Server error: {ex.Message}";
+        }
+        finally
+        {
+            _loading = false;
+        }
+
+        RebuildSeries();
+    }
+
+    private void RebuildSeries()
+    {
+        _series = Plot.Expressions
+            .Where(e => e.IsEnabled && e.Points.Count > 0)
+            .Select(e => (ISeries)new LineSeries<LiveChartsCore.Defaults.ObservablePoint>
+            {
+                Name = string.IsNullOrWhiteSpace(e.Label) ? e.Expression : e.Label,
+                Values = e.Points
+                    .Select(p => new LiveChartsCore.Defaults.ObservablePoint(p.X, p.Y))
+                    .ToArray(),
+                Stroke = new SolidColorPaint(ParseColor(e.Color), 2),
+                GeometryStroke = new SolidColorPaint(ParseColor(e.Color), 2),
+                GeometrySize = 4,
+                Fill = null,
+            })
+            .ToArray();
+
+        StateHasChanged();
+    }
+
+    private static SKColor ParseColor(string hex)
+    {
+        hex = hex.TrimStart('#');
+        if (hex.Length == 6 &&
+            byte.TryParse(hex[0..2], System.Globalization.NumberStyles.HexNumber, null, out var r) &&
+            byte.TryParse(hex[2..4], System.Globalization.NumberStyles.HexNumber, null, out var g) &&
+            byte.TryParse(hex[4..6], System.Globalization.NumberStyles.HexNumber, null, out var b))
+        {
+            return new SKColor(r, g, b);
+        }
+        return SKColors.SteelBlue;
+    }
+}
