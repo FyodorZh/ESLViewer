@@ -117,6 +117,6 @@
         StateHasChanged();
 
         if (_chart is not null)
-            await _chart.UpdateSeriesAsync(true);
+            await _chart.RenderAsync();
     }
 }
