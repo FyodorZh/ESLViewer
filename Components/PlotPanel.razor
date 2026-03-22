@@ -23,8 +23,9 @@
                    Title=""
                    @ref="_chart"
                    Options="_options"
-                   Width="@(Width - 4)"
-                   Height="@(Height - 140)">
+                   Width="@("100%")"
+                   Height="@("100%")"
+                   @key="_chartKey">
             @foreach (var expr in _enabledExpressions)
             {
                 var e = expr;
@@ -56,9 +57,15 @@
     private List<ExpressionModel> _enabledExpressions = new();
     private bool _loading;
     private string? _error;
+    private int _prevWidth;
+    private int _prevHeight;
+    private int _chartKey;
 
     protected override void OnInitialized()
     {
+        _prevWidth = Width;
+        _prevHeight = Height;
+
         _options = new ApexChartOptions<PlotPoint>
         {
             Chart = new Chart
@@ -80,6 +87,16 @@
     {
         if (firstRender)
             await RefreshAsync();
+    }
+
+    protected override void OnParametersSet()
+    {
+        if (Width != _prevWidth || Height != _prevHeight)
+        {
+            _prevWidth = Width;
+            _prevHeight = Height;
+            _chartKey++;   // forces ApexChart to fully remount at the new container size
+        }
     }
 
     public async Task RefreshAsync()

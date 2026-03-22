@@ -118,6 +118,13 @@ html, body {
     flex: 1;
     position: relative;
     min-height: 0;
+    overflow: hidden;
+}
+
+/* ApexCharts injects a div wrapper — make it fill the area too */
+.plot-chart-area > div {
+    width: 100% !important;
+    height: 100% !important;
 }
 
 .plot-loading,
