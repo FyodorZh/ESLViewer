@@ -6,6 +6,7 @@
 <div class="plot-panel" style="width:@(Width)px; height:@(Height)px;">
     <div class="plot-header">
         <input class="plot-title-input" type="text" @bind="Plot.Title" @bind:event="oninput" />
+        <span class="plot-type-badge">@Plot.PlotType</span>
         <button class="btn-icon btn-danger" title="Remove plot" @onclick="() => OnRemove.InvokeAsync(Plot)">&#x2715;</button>
     </div>
 
@@ -26,22 +27,41 @@
                    Width="@("100%")"
                    Height="@("100%")"
                    @key="_chartKey">
-            @foreach (var expr in _enabledExpressions)
+            @if (Plot.PlotType == PlotType.DateTime)
             {
-                var e = expr;
-                <ApexPointSeries TItem="PlotPoint"
-                                 Items="e.Points"
-                                 Name="@(string.IsNullOrWhiteSpace(e.Label) ? e.Expression : e.Label)"
-                                 SeriesType="SeriesType.Line"
-                                 XValue="p => (decimal)p.X"
-                                 YValue="p => (decimal)p.Y"
-                                 Color="@e.Color"
-                                 OrderBy="d => d.X" />
+                @foreach (var expr in _enabledExpressions)
+                {
+                    var e = expr;
+                    <ApexPointSeries TItem="PlotPoint"
+                                     Items="e.Points"
+                                     Name="@(string.IsNullOrWhiteSpace(e.Label) ? e.Expression : e.Label)"
+                                     SeriesType="SeriesType.Line"
+                                     XValue="p => (long)p.X"
+                                     YValue="p => (decimal)p.Y"
+                                     Color="@e.Color"
+                                     OrderBy="d => d.X" />
+                }
+            }
+            else
+            {
+                @foreach (var expr in _enabledExpressions)
+                {
+                    var e = expr;
+                    <ApexPointSeries TItem="PlotPoint"
+                                     Items="e.Points"
+                                     Name="@(string.IsNullOrWhiteSpace(e.Label) ? e.Expression : e.Label)"
+                                     SeriesType="SeriesType.Line"
+                                     XValue="p => (decimal)p.X"
+                                     YValue="p => (decimal)p.Y"
+                                     Color="@e.Color"
+                                     OrderBy="d => d.X" />
+                }
             }
         </ApexChart>
     </div>
 
     <ExpressionEditor Expressions="Plot.Expressions"
+                      PlotType="Plot.PlotType"
                       OnRefresh="RefreshOneAsync"
                       OnColorChanged="UpdateChart" />
 </div>
@@ -73,14 +93,20 @@
                 Zoom = new Zoom { Enabled = true, Type = AxisType.Xy },
                 Toolbar = new Toolbar { Show = true, AutoSelected = AutoSelected.Zoom }
             },
-            Xaxis = new XAxis { Type = XAxisType.Numeric },
+            Xaxis = new XAxis
+            {
+                Type = Plot.PlotType == PlotType.DateTime ? XAxisType.Datetime : XAxisType.Numeric
+            },
             Stroke = new Stroke { Curve = Curve.Straight, Width = new List<int> { 2 } },
             Markers = new Markers { Size = new List<int> { 0 } },
             Legend = new Legend { Show = true, Position = LegendPosition.Bottom }
         };
 
         if (Plot.Expressions.Count == 0)
-            Plot.Expressions.Add(new ExpressionModel { Expression = "x^2", Color = "#1b6ec2", Label = "f1" });
+        {
+            var defaultExpr = Plot.PlotType == PlotType.DateTime ? string.Empty : "x^2";
+            Plot.Expressions.Add(new ExpressionModel { Expression = defaultExpr, Color = "#1b6ec2", Label = "f1" });
+        }
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -118,7 +144,7 @@
         try
         {
             if (!string.IsNullOrWhiteSpace(expr.Expression))
-                expr.Points = await MathServer.EvaluateAsync(expr.Expression);
+                expr.Points = await MathServer.EvaluateAsync(expr.Expression, Plot.PlotType);
         }
         catch (Exception ex)
         {
@@ -144,7 +170,7 @@
             foreach (var expr in Plot.Expressions)
             {
                 if (!string.IsNullOrWhiteSpace(expr.Expression))
-                    expr.Points = await MathServer.EvaluateAsync(expr.Expression);
+                    expr.Points = await MathServer.EvaluateAsync(expr.Expression, Plot.PlotType);
             }
         }
         catch (Exception ex)

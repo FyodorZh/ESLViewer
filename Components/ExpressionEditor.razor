@@ -8,7 +8,7 @@
         <div class="expr-row">
             <span class="expr-color-dot" style="background:@current.Color;"></span>
             <textarea class="expr-input"
-                      placeholder="e.g. x^2"
+                      placeholder="@Placeholder"
                       @oninput="e => current.Expression = e.Value?.ToString() ?? string.Empty"
                       @onkeydown="e => OnKeyDown(e, current)">@current.Expression</textarea>
             <input class="expr-color"
@@ -34,6 +34,13 @@
     [Parameter] public ObservableCollection<ExpressionModel> Expressions { get; set; } = new();
     [Parameter] public EventCallback<ExpressionModel?> OnRefresh { get; set; }
     [Parameter] public EventCallback OnColorChanged { get; set; }
+    [Parameter] public PlotType PlotType { get; set; } = PlotType.Numeric;
+
+    private string Placeholder => PlotType switch
+    {
+        PlotType.DateTime => "e.g. my_timeseries()",
+        _ => "e.g. x^2"
+    };
 
     private static readonly string[] DefaultColors =
     {

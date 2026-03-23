@@ -278,3 +278,16 @@ html, body {
     inset: calc(20vh + 3.25rem) 0 auto .2rem;
 }
 .loading-progress-text::after { content: var(--blazor-load-percentage-text, "Loading"); }
+
+/* ── Plot type badge ─────────────────────────────────────── */
+.plot-type-badge {
+    font-size: 0.7rem;
+    background: #e9ecef;
+    color: #495057;
+    border-radius: 3px;
+    padding: 1px 6px;
+    margin-left: 0.4rem;
+    white-space: nowrap;
+    flex-shrink: 0;
+    align-self: center;
+}

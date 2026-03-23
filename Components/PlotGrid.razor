@@ -15,7 +15,15 @@
         <input type="range" min="280" max="900" step="20" @bind="_plotSize" />
         <span>@_plotSize px</span>
     </label>
-    <button class="btn-sm btn-primary" @onclick="AddPlot">+ Add plot</button>
+    <div class="dropdown d-inline-block">
+        <button class="btn-sm btn-primary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+            + Add plot
+        </button>
+        <ul class="dropdown-menu">
+            <li><button class="dropdown-item" @onclick='() => AddPlot(PlotType.Numeric)'>📈 Numeric</button></li>
+            <li><button class="dropdown-item" @onclick='() => AddPlot(PlotType.DateTime)'>📅 DateTime</button></li>
+        </ul>
+    </div>
 </div>
 
 <div class="plot-grid" style="grid-template-columns: repeat(@_columns, @(_plotSize)px);">
@@ -39,9 +47,9 @@
         _plots.Add(new PlotModel { Title = "Plot 1" });
     }
 
-    private void AddPlot()
+    private void AddPlot(PlotType type)
     {
-        _plots.Add(new PlotModel { Title = $"Plot {_plots.Count + 1}" });
+        _plots.Add(new PlotModel { Title = $"Plot {_plots.Count + 1}", PlotType = type });
     }
 
     private void RemovePlot(PlotModel plot)
