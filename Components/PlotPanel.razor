@@ -128,6 +128,16 @@
             {
                 Type = Plot.PlotType == PlotType.DateTime ? XAxisType.Datetime : XAxisType.Numeric
             },
+            Yaxis = new List<YAxis>
+            {
+                new YAxis
+                {
+                    Labels = new YAxisLabels
+                    {
+                        Formatter = "function(val) { return parseFloat(val.toPrecision(12)).toString(); }"
+                    }
+                }
+            },
             Stroke = new Stroke { Curve = Curve.Straight, Width = new List<int> { 2 } },
             Markers = new Markers { Size = new List<int> { 0 } },
             Legend = new Legend { Show = true, Position = LegendPosition.Bottom }
