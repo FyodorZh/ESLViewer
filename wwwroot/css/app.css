@@ -279,6 +279,50 @@ html, body {
 }
 .loading-progress-text::after { content: var(--blazor-load-percentage-text, "Loading"); }
 
+/* ── Auto-refresh bar ────────────────────────────────────── */
+.plot-autorefresh-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    padding: 0.25rem 0.7rem;
+    background: #f0f4f8;
+    border-bottom: 1px solid #e2e6ea;
+    flex-shrink: 0;
+    font-size: 0.8rem;
+    color: #495057;
+}
+
+.ar-label {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    cursor: pointer;
+    user-select: none;
+}
+
+.ar-select {
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    padding: 0.1rem 0.3rem;
+    font-size: 0.8rem;
+    background: #fff;
+    cursor: pointer;
+}
+
+.ar-active-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #28a745;
+    flex-shrink: 0;
+    animation: ar-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes ar-pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50%       { opacity: 0.4; transform: scale(0.7); }
+}
+
 /* ── Plot type badge ─────────────────────────────────────── */
 .plot-type-badge {
     font-size: 0.7rem;

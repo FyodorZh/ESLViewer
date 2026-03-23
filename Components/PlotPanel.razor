@@ -2,12 +2,34 @@
 @using ESLViewer.Services
 @using ApexCharts
 @inject MathServerService MathServer
+@implements IAsyncDisposable
 
 <div class="plot-panel" style="width:@(Width)px; height:@(Height)px;">
     <div class="plot-header">
         <input class="plot-title-input" type="text" @bind="Plot.Title" @bind:event="oninput" />
         <span class="plot-type-badge">@Plot.PlotType</span>
         <button class="btn-icon btn-danger" title="Remove plot" @onclick="() => OnRemove.InvokeAsync(Plot)">&#x2715;</button>
+    </div>
+
+    <div class="plot-autorefresh-bar">
+        <label class="ar-label">
+            <input type="checkbox"
+                   checked="@_autoRefreshEnabled"
+                   @onchange="OnAutoRefreshToggled" />
+            Auto-refresh
+        </label>
+        @if (_autoRefreshEnabled)
+        {
+            <select class="ar-select" value="@_autoRefreshInterval" @onchange="OnIntervalChanged">
+                <option value="Seconds3">3 s</option>
+                <option value="Seconds5">5 s</option>
+                <option value="Seconds10">10 s</option>
+                <option value="Minute1">1 min</option>
+                <option value="Minute10">10 min</option>
+                <option value="Hour1">1 hour</option>
+            </select>
+            <span class="ar-active-dot" title="Auto-refresh active"></span>
+        }
     </div>
 
     <div class="plot-chart-area">
@@ -81,6 +103,12 @@
     private int _prevHeight;
     private int _chartKey;
     private bool _needsChartRender;
+    private bool _chartReady;
+
+    // Auto-refresh
+    private bool _autoRefreshEnabled;
+    private AutoRefreshInterval _autoRefreshInterval = AutoRefreshInterval.Seconds5;
+    private CancellationTokenSource? _cts;
 
     protected override void OnInitialized()
     {
@@ -115,8 +143,12 @@
         if (firstRender)
         {
             await RefreshAsync();
+            // Mark the chart as ready only after the first full data load.
+            // This prevents RenderAsync from firing before ApexCharts has
+            // finished its own JS initialization.
+            _chartReady = true;
         }
-        else if (_needsChartRender)
+        else if (_needsChartRender && _chartReady)
         {
             _needsChartRender = false;
             if (_chart is not null)
@@ -205,7 +237,72 @@
 
         // Immediate call handles the hide case (series must be removed from the
         // chart before / during the Blazor re-render cycle).
-        if (_chart is not null)
+        if (_chart is not null && _chartReady)
             await _chart.RenderAsync();
+    }
+
+    // ── Auto-refresh ──────────────────────────────────────────────────────────
+
+    private void OnAutoRefreshToggled(ChangeEventArgs e)
+    {
+        _autoRefreshEnabled = (bool)(e.Value ?? false);
+        if (_autoRefreshEnabled)
+            StartAutoRefreshLoop();
+        else
+            StopAutoRefresh();
+    }
+
+    private void OnIntervalChanged(ChangeEventArgs e)
+    {
+        if (Enum.TryParse<AutoRefreshInterval>(e.Value?.ToString(), out var interval))
+            _autoRefreshInterval = interval;
+
+        if (_autoRefreshEnabled)
+        {
+            StopAutoRefresh();
+            StartAutoRefreshLoop();
+        }
+    }
+
+    private TimeSpan GetRefreshTimeSpan() => _autoRefreshInterval switch
+    {
+        AutoRefreshInterval.Seconds3  => TimeSpan.FromSeconds(3),
+        AutoRefreshInterval.Seconds5  => TimeSpan.FromSeconds(5),
+        AutoRefreshInterval.Seconds10 => TimeSpan.FromSeconds(10),
+        AutoRefreshInterval.Minute1   => TimeSpan.FromMinutes(1),
+        AutoRefreshInterval.Minute10  => TimeSpan.FromMinutes(10),
+        AutoRefreshInterval.Hour1     => TimeSpan.FromHours(1),
+        _                             => TimeSpan.FromSeconds(5)
+    };
+
+    private void StartAutoRefreshLoop()
+    {
+        StopAutoRefresh();
+        _cts = new CancellationTokenSource();
+        _ = AutoRefreshLoopAsync(_cts.Token);
+    }
+
+    private async Task AutoRefreshLoopAsync(CancellationToken token)
+    {
+        using var timer = new PeriodicTimer(GetRefreshTimeSpan());
+        try
+        {
+            while (await timer.WaitForNextTickAsync(token))
+                await RefreshAsync();
+        }
+        catch (OperationCanceledException) { }
+    }
+
+    private void StopAutoRefresh()
+    {
+        _cts?.Cancel();
+        _cts?.Dispose();
+        _cts = null;
+    }
+
+    public ValueTask DisposeAsync()
+    {
+        StopAutoRefresh();
+        return ValueTask.CompletedTask;
     }
 }
