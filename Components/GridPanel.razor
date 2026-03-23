@@ -1,0 +1,166 @@
+@using ESLViewer.Models
+
+<div class="grid-panel" style="width:@(Width)px; height:@(Height)px;">
+    <div class="panel-header">
+        <input class="panel-title-input" type="text" @bind="Model.Title" @bind:event="oninput" />
+        <div class="grid-panel-header-controls">
+            <span class="panel-type-badge">Grid @(Model.XSize)×@(Model.YSize)</span>
+            <button class="btn-sm btn-primary grid-btn" title="Add row" @onclick="AddRow">+Row</button>
+            <button class="btn-sm btn-primary grid-btn" title="Add column" @onclick="AddColumn">+Col</button>
+            <button class="btn-sm btn-secondary grid-btn" title="Remove bottom row (only when all empty)"
+                    @onclick="RemoveRow" disabled="@(!Model.CanRemoveRow())">−Row</button>
+            <button class="btn-sm btn-secondary grid-btn" title="Remove rightmost column (only when all empty)"
+                    @onclick="RemoveColumn" disabled="@(!Model.CanRemoveColumn())">−Col</button>
+            <button class="btn-icon btn-danger" title="Remove panel" @onclick="() => OnRemove.InvokeAsync(Model)">&#x2715;</button>
+        </div>
+    </div>
+
+    <div class="grid-panel-cells"
+         style="display:grid;
+                grid-template-columns: repeat(@Model.XSize, @(CellWidth)px);
+                grid-template-rows: repeat(@Model.YSize, @(CellHeight)px);
+                gap:4px; padding:4px; overflow:hidden;">
+        @foreach (var cell in Model.Cells)
+        {
+            var currentCell = cell;
+            @if (currentCell is GridPanelModel nestedGrid)
+            {
+                <GridPanel Model="nestedGrid"
+                           Width="CellWidth"
+                           Height="CellHeight"
+                           OnRemove="m => ReplaceCellWithEmpty(m)"
+                           @ref="_gridCellRefs[nestedGrid.Id]" />
+            }
+            else if (currentCell.PanelType == PanelType.Empty)
+            {
+                <EmptyPanel Model="currentCell"
+                            Width="CellWidth"
+                            Height="CellHeight"
+                            OnRemove="m => ReplaceCellWithEmpty(m)"
+                            OnReplace="type => ReplaceCell(currentCell, type)" />
+            }
+            else
+            {
+                <Panel Model="currentCell"
+                       Width="CellWidth"
+                       Height="CellHeight"
+                       OnRemove="m => ReplaceCellWithEmpty(m)"
+                       @ref="_cellRefs[currentCell.Id]" />
+            }
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public GridPanelModel Model { get; set; } = default!;
+    [Parameter] public int Width { get; set; } = 500;
+    [Parameter] public int Height { get; set; } = 420;
+    [Parameter] public EventCallback<PanelModel> OnRemove { get; set; }
+
+    private Dictionary<Guid, Panel?> _cellRefs = new();
+    private Dictionary<Guid, GridPanel?> _gridCellRefs = new();
+
+    private const int HeaderHeight = 44;
+    private const int PaddingTotal = 8;  // 4 px each side
+    private const int GapSize = 4;
+
+    private int CellWidth => Math.Max(120,
+        (Width - PaddingTotal - GapSize * Math.Max(0, Model.XSize - 1)) / Math.Max(1, Model.XSize));
+
+    private int CellHeight => Math.Max(100,
+        (Height - HeaderHeight - PaddingTotal - GapSize * Math.Max(0, Model.YSize - 1)) / Math.Max(1, Model.YSize));
+
+    // ── Cell mutations ────────────────────────────────────────────────────────
+
+    private void AddRow()
+    {
+        Model.AddRow();
+        StateHasChanged();
+    }
+
+    private void AddColumn()
+    {
+        Model.AddColumn();
+        StateHasChanged();
+    }
+
+    private void RemoveRow()
+    {
+        Model.RemoveRow();
+        CleanupStaleRefs();
+        StateHasChanged();
+    }
+
+    private void RemoveColumn()
+    {
+        Model.RemoveColumn();
+        CleanupStaleRefs();
+        StateHasChanged();
+    }
+
+    /// <summary>
+    /// Replace an EmptyPanel cell with a new panel of the given type.
+    /// </summary>
+    private void ReplaceCell(PanelModel oldCell, PanelType type)
+    {
+        var idx = Model.Cells.IndexOf(oldCell);
+        if (idx < 0) return;
+
+        PanelModel newCell = type == PanelType.Grid
+            ? new GridPanelModel()
+            : new PanelModel { Title = "Panel", PanelType = type };
+
+        Model.Cells[idx] = newCell;
+        StateHasChanged();
+    }
+
+    /// <summary>
+    /// Replace a non-empty cell with a fresh EmptyPanel (triggered by the cell's remove button).
+    /// </summary>
+    private void ReplaceCellWithEmpty(PanelModel model)
+    {
+        var idx = Model.Cells.IndexOf(model);
+        if (idx < 0) return;
+
+        _cellRefs.Remove(model.Id);
+        _gridCellRefs.Remove(model.Id);
+        Model.Cells[idx] = new PanelModel { PanelType = PanelType.Empty, CanBeClosed = false };
+        StateHasChanged();
+    }
+
+    private void CleanupStaleRefs()
+    {
+        var ids = Model.Cells.Select(c => c.Id).ToHashSet();
+        foreach (var key in _cellRefs.Keys.ToList())
+            if (!ids.Contains(key)) _cellRefs.Remove(key);
+        foreach (var key in _gridCellRefs.Keys.ToList())
+            if (!ids.Contains(key)) _gridCellRefs.Remove(key);
+    }
+
+    // ── Public API (used by PanelGrid) ────────────────────────────────────────
+
+    /// <summary>Refresh all nested data panels (and nested grids) recursively.</summary>
+    public async Task RefreshAllAsync()
+    {
+        foreach (var (_, panelRef) in _cellRefs)
+            if (panelRef is not null) await panelRef.RefreshAsync();
+        foreach (var (_, gridRef) in _gridCellRefs)
+            if (gridRef is not null) await gridRef.RefreshAllAsync();
+    }
+
+    /// <summary>Capture a full snapshot including nested panels' axis ranges.</summary>
+    public async Task<PanelSnapshot> CaptureSnapshotAsync()
+    {
+        var snapshot = Model.ToSnapshot();
+        for (int i = 0; i < Model.Cells.Count; i++)
+        {
+            var cell = Model.Cells[i];
+            if (cell is GridPanelModel && _gridCellRefs.TryGetValue(cell.Id, out var gridRef) && gridRef is not null)
+                snapshot.GridCells[i] = await gridRef.CaptureSnapshotAsync();
+            else if (cell.PanelType != PanelType.Empty && _cellRefs.TryGetValue(cell.Id, out var panelRef) && panelRef is not null)
+                snapshot.GridCells[i] = await panelRef.CaptureSnapshotAsync();
+        }
+        return snapshot;
+    }
+}
+

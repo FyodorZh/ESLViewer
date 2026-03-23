@@ -28,6 +28,7 @@
             <li><button class="dropdown-item" @onclick='() => AddPanel(PanelType.Numeric)'>📈 Numeric</button></li>
             <li><button class="dropdown-item" @onclick='() => AddPanel(PanelType.DateTime)'>📅 DateTime</button></li>
             <li><button class="dropdown-item" @onclick='() => AddPanel(PanelType.Empty)'>⬜ Empty</button></li>
+            <li><button class="dropdown-item" @onclick='() => AddPanel(PanelType.Grid)'>🔲 Grid</button></li>
         </ul>
     </div>
 
@@ -55,7 +56,15 @@
     @foreach (var panel in _panels)
     {
         var current = panel;
-        @if (current.PanelType == PanelType.Empty)
+        @if (current is GridPanelModel gridModel)
+        {
+            <GridPanel Model="gridModel"
+                       Width="_panelSize"
+                       Height="@(_panelSize - 80)"
+                       OnRemove="RemovePanel"
+                       @ref="_gridPanelRefs[gridModel.Id]" />
+        }
+        else if (current.PanelType == PanelType.Empty)
         {
             <EmptyPanel Model="current"
                         Width="_panelSize"
@@ -77,6 +86,7 @@
 @code {
     private List<PanelModel> _panels = new();
     private Dictionary<Guid, Panel?> _panelRefs = new();
+    private Dictionary<Guid, GridPanel?> _gridPanelRefs = new();
     private int _columns = 2;
     private int _panelSize = 500;
 
@@ -91,7 +101,7 @@
 
     protected override void OnInitialized()
     {
-        _panels.Add(new PanelModel { Title = "Panel 1" });
+        _panels.Add(new GridPanelModel { Title = "Grid 1" });
         EnsurePanelRefKeys();
     }
 
@@ -108,15 +118,21 @@
 
     private void AddPanel(PanelType type)
     {
-        var panel = new PanelModel { Title = $"Panel {_panels.Count + 1}", PanelType = type };
+        PanelModel panel = type == PanelType.Grid
+            ? new GridPanelModel { Title = $"Grid {_panels.Count + 1}" }
+            : new PanelModel { Title = $"Panel {_panels.Count + 1}", PanelType = type };
         _panels.Add(panel);
-        _panelRefs[panel.Id] = null;
+        if (panel is GridPanelModel)
+            _gridPanelRefs[panel.Id] = null;
+        else
+            _panelRefs[panel.Id] = null;
     }
 
     private void RemovePanel(PanelModel panel)
     {
         _panels.Remove(panel);
         _panelRefs.Remove(panel.Id);
+        _gridPanelRefs.Remove(panel.Id);
     }
 
     private void ReplacePanel(PanelModel oldPanel, PanelType newType)
@@ -125,20 +141,29 @@
         if (index < 0) return;
 
         _panelRefs.Remove(oldPanel.Id);
-        var newPanel = new PanelModel
-        {
-            Title = $"Panel {_panels.Count}",
-            PanelType = newType
-        };
+        _gridPanelRefs.Remove(oldPanel.Id);
+
+        PanelModel newPanel = newType == PanelType.Grid
+            ? new GridPanelModel { Title = $"Grid {_panels.Count}" }
+            : new PanelModel { Title = $"Panel {_panels.Count}", PanelType = newType };
+
         _panels[index] = newPanel;
-        _panelRefs[newPanel.Id] = null;
+        if (newPanel is GridPanelModel)
+            _gridPanelRefs[newPanel.Id] = null;
+        else
+            _panelRefs[newPanel.Id] = null;
     }
 
     /// Ensures every current panel has an entry in the refs dict (needed before first render).
     private void EnsurePanelRefKeys()
     {
         foreach (var p in _panels)
-            _panelRefs.TryAdd(p.Id, null);
+        {
+            if (p is GridPanelModel)
+                _gridPanelRefs.TryAdd(p.Id, null);
+            else
+                _panelRefs.TryAdd(p.Id, null);
+        }
     }
 
     // ── Snapshot capture ──────────────────────────────────────────────────────
@@ -148,7 +173,9 @@
         var panels = new List<PanelSnapshot>();
         foreach (var panel in _panels)
         {
-            if (_panelRefs.TryGetValue(panel.Id, out var panelRef) && panelRef is not null)
+            if (panel is GridPanelModel && _gridPanelRefs.TryGetValue(panel.Id, out var gridRef) && gridRef is not null)
+                panels.Add(await gridRef.CaptureSnapshotAsync());
+            else if (_panelRefs.TryGetValue(panel.Id, out var panelRef) && panelRef is not null)
                 panels.Add(await panelRef.CaptureSnapshotAsync());
             else
                 panels.Add(panel.ToSnapshot());
@@ -168,6 +195,7 @@
     {
         _panels.Clear();
         _panelRefs.Clear();
+        _gridPanelRefs.Clear();
         _columns = snapshot.Columns;
         _panelSize = snapshot.PanelSize;
 
@@ -184,6 +212,14 @@
         for (var i = 0; i < _panels.Count; i++)
         {
             var panel = _panels[i];
+
+            if (panel is GridPanelModel)
+            {
+                if (_gridPanelRefs.TryGetValue(panel.Id, out var gridRef) && gridRef is not null)
+                    await gridRef.RefreshAllAsync();
+                continue;
+            }
+
             if (!_panelRefs.TryGetValue(panel.Id, out var panelRef) || panelRef is null) continue;
 
             await panelRef.RefreshAsync();

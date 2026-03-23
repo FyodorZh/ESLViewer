@@ -27,5 +27,16 @@ public class PanelSnapshot
     /// Last known visible axis range. Null means "auto" / not yet captured.
     /// </summary>
     public ViewRect? ViewRect { get; set; }
+
+    // ── Grid-panel specific ──────────────────────────────────────────────────
+
+    /// <summary>Number of columns in a Grid panel. Ignored for non-Grid panels.</summary>
+    public int XSize { get; set; } = 1;
+
+    /// <summary>Number of rows in a Grid panel. Ignored for non-Grid panels.</summary>
+    public int YSize { get; set; } = 1;
+
+    /// <summary>Snapshots of child cells (row-major order). Only used for Grid panels.</summary>
+    public List<PanelSnapshot> GridCells { get; set; } = new();
 }
 

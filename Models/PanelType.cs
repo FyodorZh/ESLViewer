@@ -1,4 +1,4 @@
 namespace ESLViewer.Models;
 
-public enum PanelType { Numeric, DateTime, Empty }
+public enum PanelType { Numeric, DateTime, Empty, Grid }
 

@@ -221,7 +221,8 @@ html, body {
     font-weight: 500;
     transition: filter .15s;
 }
-.btn-sm:hover { filter: brightness(0.9); }
+.btn-sm:hover:not(:disabled) { filter: brightness(0.9); }
+.btn-sm:disabled { opacity: 0.45; cursor: not-allowed; }
 
 .btn-primary  { background: #1b6ec2; color: #fff; }
 .btn-secondary { background: #6c757d; color: #fff; }
@@ -368,3 +369,32 @@ html, body {
     letter-spacing: 0.05em;
     text-transform: uppercase;
 }
+
+/* ── Grid Panel ──────────────────────────────────────────── */
+.grid-panel {
+    background: #f0f2f5;
+    border: 2px solid #c8cdd4;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.grid-panel-cells {
+    flex: 1;
+    overflow: hidden;
+}
+
+.grid-panel-header-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    flex-shrink: 0;
+}
+
+.grid-btn {
+    padding: 0.2rem 0.5rem;
+    font-size: 0.75rem;
+}
+
+

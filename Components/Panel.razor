@@ -154,11 +154,11 @@
     {
         if (firstRender)
         {
-            await RefreshAsync();
-            // Mark the chart as ready only after the first full data load.
-            // This prevents RenderAsync from firing before ApexCharts has
-            // finished its own JS initialization.
+            // Set ready before RefreshAsync: ApexCharts JS init is done by the
+            // time firstRender fires, so the immediate RenderAsync path in
+            // UpdateChart can safely be used during the initial data load.
             _chartReady = true;
+            await RefreshAsync();
         }
         else if (_needsChartRender && _chartReady)
         {
@@ -244,13 +244,29 @@
             .Where(e => e.IsEnabled && e.Points.Count > 0)
             .ToList();
 
+        // Calling RenderAsync on ApexCharts with zero series causes a JS crash
+        // ("Cannot read properties of null (reading 'forEach')").
+        // Force a full remount via _chartKey++ to clear the chart cleanly instead.
+        if (_enabledExpressions.Count == 0)
+        {
+            _needsChartRender = false;
+            _chartKey++;
+            StateHasChanged();
+            return;
+        }
+
         _needsChartRender = true;
         StateHasChanged();
 
-        // Immediate call handles the hide case (series must be removed from the
-        // chart before / during the Blazor re-render cycle).
+        // Immediate call handles the hide/show case (series must be updated
+        // before / during the Blazor re-render cycle).
+        // Clear the flag after success so OnAfterRenderAsync skips the
+        // redundant second RenderAsync call.
         if (_chart is not null && _chartReady)
+        {
             await _chart.RenderAsync();
+            _needsChartRender = false;
+        }
     }
 
     // ── Auto-refresh ──────────────────────────────────────────────────────────

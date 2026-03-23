@@ -22,7 +22,7 @@ public class PanelModel
     /// ViewRect is left null here — it is populated asynchronously by
     /// Panel.CaptureSnapshotAsync() via JS interop.
     /// </summary>
-    public PanelSnapshot ToSnapshot() => new()
+    public virtual PanelSnapshot ToSnapshot() => new()
     {
         Title = Title,
         PanelType = PanelType.ToString(),
@@ -37,6 +37,9 @@ public class PanelModel
     /// </summary>
     public static PanelModel FromSnapshot(PanelSnapshot snapshot)
     {
+        if (snapshot.PanelType == "Grid")
+            return GridPanelModel.FromGridSnapshot(snapshot);
+
         var model = new PanelModel
         {
             Title = snapshot.Title,
