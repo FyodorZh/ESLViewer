@@ -17,7 +17,7 @@ public class MathServerService
         var encoded = Uri.EscapeDataString(expression);
         try
         {
-            var response = await _http.GetStringAsync($"calculate?expr={encoded}");
+            var response = await _http.GetStringAsync($"invoke?script={encoded}");
             return ParsePoints(response);
         }
         catch
