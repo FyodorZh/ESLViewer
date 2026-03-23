@@ -28,13 +28,13 @@
     }
     <div class="expr-actions">
         <button class="btn-sm btn-secondary" @onclick="AddExpression">+ Add expression</button>
-        <button class="btn-sm btn-primary" @onclick="() => OnRefresh.InvokeAsync()">&#8635; Refresh</button>
+        <button class="btn-sm btn-primary" @onclick="() => OnRefresh.InvokeAsync(null)">&#8635; Refresh</button>
     </div>
 </div>
 
 @code {
     [Parameter] public ObservableCollection<ExpressionModel> Expressions { get; set; } = new();
-    [Parameter] public EventCallback OnRefresh { get; set; }
+    [Parameter] public EventCallback<ExpressionModel?> OnRefresh { get; set; }
     [Parameter] public EventCallback OnColorChanged { get; set; }
 
     private static readonly string[] DefaultColors =
@@ -52,12 +52,12 @@
     private void Remove(ExpressionModel expr)
     {
         Expressions.Remove(expr);
-        OnRefresh.InvokeAsync();
+        OnRefresh.InvokeAsync(null);
     }
 
     private void OnKeyDown(KeyboardEventArgs e, ExpressionModel expr)
     {
         if (e.Key == "Enter")
-            OnRefresh.InvokeAsync();
+            OnRefresh.InvokeAsync(expr);
     }
 }

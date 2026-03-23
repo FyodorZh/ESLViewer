@@ -42,7 +42,7 @@
     </div>
 
     <ExpressionEditor Expressions="Plot.Expressions"
-                      OnRefresh="RefreshAsync"
+                      OnRefresh="RefreshOneAsync"
                       OnColorChanged="UpdateChart" />
 </div>
 
@@ -99,6 +99,40 @@
         }
     }
 
+    // Called by ExpressionEditor: expr == null means refresh all
+    private async Task RefreshOneAsync(ExpressionModel? expr)
+    {
+        if (expr is not null)
+            await RefreshAsync(expr);
+        else
+            await RefreshAsync();
+    }
+
+    // Refresh a single expression only
+    private async Task RefreshAsync(ExpressionModel expr)
+    {
+        _loading = true;
+        _error = null;
+        StateHasChanged();
+
+        try
+        {
+            if (!string.IsNullOrWhiteSpace(expr.Expression))
+                expr.Points = await MathServer.EvaluateAsync(expr.Expression);
+        }
+        catch (Exception ex)
+        {
+            _error = $"Error: {ex.Message}";
+        }
+        finally
+        {
+            _loading = false;
+        }
+
+        await UpdateChart();
+    }
+
+    // Refresh all expressions
     public async Task RefreshAsync()
     {
         _loading = true;
