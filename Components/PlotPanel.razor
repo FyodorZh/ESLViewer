@@ -80,6 +80,7 @@
     private int _prevWidth;
     private int _prevHeight;
     private int _chartKey;
+    private bool _needsChartRender;
 
     protected override void OnInitialized()
     {
@@ -112,7 +113,15 @@
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
+        {
             await RefreshAsync();
+        }
+        else if (_needsChartRender)
+        {
+            _needsChartRender = false;
+            if (_chart is not null)
+                await _chart.RenderAsync();
+        }
     }
 
     protected override void OnParametersSet()
@@ -191,8 +200,11 @@
             .Where(e => e.IsEnabled && e.Points.Count > 0)
             .ToList();
 
+        _needsChartRender = true;
         StateHasChanged();
 
+        // Immediate call handles the hide case (series must be removed from the
+        // chart before / during the Blazor re-render cycle).
         if (_chart is not null)
             await _chart.RenderAsync();
     }
