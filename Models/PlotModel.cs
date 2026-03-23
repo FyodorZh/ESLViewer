@@ -1,6 +1,6 @@
 using System.Collections.ObjectModel;
 
-namespace ESLPlotter.Models;
+namespace ESLViewer.Models;
 
 public class PlotModel
 {

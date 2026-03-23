@@ -1,4 +1,4 @@
-# ESLPlotter
+# ESLViewer
 
 ## Project Overview
 

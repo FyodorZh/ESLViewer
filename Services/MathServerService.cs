@@ -1,7 +1,7 @@
 using System.Text.RegularExpressions;
-using ESLPlotter.Models;
+using ESLViewer.Models;
 
-namespace ESLPlotter.Services;
+namespace ESLViewer.Services;
 
 public class MathServerService
 {

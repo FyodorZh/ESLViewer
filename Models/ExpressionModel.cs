@@ -1,4 +1,4 @@
-namespace ESLPlotter.Models;
+namespace ESLViewer.Models;
 
 public class ExpressionModel
 {
