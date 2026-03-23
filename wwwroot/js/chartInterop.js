@@ -89,7 +89,7 @@ window.ESLViewer.getCookie = function (name) {
     return null;
 };
 
-// ─── beforeunload helpers (used by PlotGrid auto-save) ───────────────────────
+// ─── beforeunload helpers (used by PanelGrid auto-save) ──────────────────────
 
 /**
  * Registers a beforeunload listener that invokes AutoSaveAsync on the

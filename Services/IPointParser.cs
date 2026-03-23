@@ -4,5 +4,5 @@ namespace ESLViewer.Services;
 
 public interface IPointParser
 {
-    List<PlotPoint> Parse(string raw);
+    List<PanelPoint> Parse(string raw);
 }

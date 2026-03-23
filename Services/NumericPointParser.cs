@@ -10,14 +10,14 @@ public class NumericPointParser : IPointParser
         @"\(\s*([+-]?[0-9]*\.?[0-9]+(?:[eE][+-]?[0-9]+)?)\s*,\s*([+-]?[0-9]*\.?[0-9]+(?:[eE][+-]?[0-9]+)?)\s*\)",
         RegexOptions.Compiled);
 
-    public List<PlotPoint> Parse(string raw)
+    public List<PanelPoint> Parse(string raw)
     {
-        var result = new List<PlotPoint>();
+        var result = new List<PanelPoint>();
         foreach (Match m in Regex.Matches(raw))
         {
             if (double.TryParse(m.Groups[1].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var x) &&
                 double.TryParse(m.Groups[2].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var y))
-                result.Add(new PlotPoint(x, y));
+                result.Add(new PanelPoint(x, y));
         }
         return result;
     }

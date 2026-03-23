@@ -3,36 +3,36 @@ using ESLViewer.Models.State;
 
 namespace ESLViewer.Models;
 
-public class PlotModel
+public class PanelModel
 {
     public Guid Id { get; set; } = Guid.NewGuid();
-    public string Title { get; set; } = "New Plot";
-    public PlotType PlotType { get; set; } = PlotType.Numeric;
+    public string Title { get; set; } = "New Panel";
+    public PanelType PanelType { get; set; } = PanelType.Numeric;
     public ObservableCollection<ExpressionModel> Expressions { get; set; } = new();
 
     /// <summary>
-    /// Creates a snapshot of this plot's persistable state.
+    /// Creates a snapshot of this panel's persistable state.
     /// ViewRect is left null here — it is populated asynchronously by
-    /// PlotPanel.CaptureSnapshotAsync() via JS interop (Phase 3).
+    /// Panel.CaptureSnapshotAsync() via JS interop.
     /// </summary>
-    public PlotSnapshot ToSnapshot() => new()
+    public PanelSnapshot ToSnapshot() => new()
     {
         Title = Title,
-        PlotType = PlotType.ToString(),
+        PanelType = PanelType.ToString(),
         Expressions = Expressions.Select(e => e.ToSnapshot()).ToList(),
         ViewRect = null,
     };
 
     /// <summary>
-    /// Constructs a new PlotModel from a snapshot.
+    /// Constructs a new PanelModel from a snapshot.
     /// All expressions are restored with empty Points lists — data is re-fetched after restore.
     /// </summary>
-    public static PlotModel FromSnapshot(PlotSnapshot snapshot)
+    public static PanelModel FromSnapshot(PanelSnapshot snapshot)
     {
-        var model = new PlotModel
+        var model = new PanelModel
         {
             Title = snapshot.Title,
-            PlotType = Enum.TryParse<PlotType>(snapshot.PlotType, out var pt) ? pt : PlotType.Numeric,
+            PanelType = Enum.TryParse<PanelType>(snapshot.PanelType, out var pt) ? pt : PanelType.Numeric,
         };
         foreach (var exprSnap in snapshot.Expressions)
         {
@@ -43,3 +43,4 @@ public class PlotModel
         return model;
     }
 }
+

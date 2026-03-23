@@ -2,11 +2,11 @@
 
 ## Architecture
 
-**Component hierarchy:** `Home.razor` → `PlotGrid` → `PlotPanel` → `ExpressionEditor`
+**Component hierarchy:** `Home.razor` → `PanelGrid` → `Panel` → `ExpressionEditor`
 
-- **PlotGrid** owns the `List<PlotModel>` and grid layout (columns, size slider).
-- **PlotPanel** owns chart state, refresh logic, and auto-refresh timer. Passes `Plot.Expressions` (an `ObservableCollection<ExpressionModel>`) down to `ExpressionEditor`.
-- **ExpressionEditor** is purely UI — it mutates the shared `ObservableCollection` directly and fires `OnRefresh`/`OnColorChanged` callbacks up to `PlotPanel`.
+- **PanelGrid** owns the `List<PanelModel>` and grid layout (columns, size slider).
+- **Panel** owns chart state, refresh logic, and auto-refresh timer. Passes `Model.Expressions` (an `ObservableCollection<ExpressionModel>`) down to `ExpressionEditor`.
+- **ExpressionEditor** is purely UI — it mutates the shared `ObservableCollection` directly and fires `OnRefresh`/`OnColorChanged` callbacks up to `Panel`.
 
 All state is in-memory; there is no persistence layer.
 
@@ -18,14 +18,14 @@ All state is in-memory; there is no persistence layer.
 
 `MathServerService.EvaluateAsync` silently returns `[]` on any HTTP or parse error — callers never need to handle exceptions from it.
 
-## PlotType / Parser Pattern
+## PanelType / Parser Pattern
 
-Two plot types: `PlotType.Numeric` and `PlotType.DateTime`. Each has a dedicated `IPointParser` implementation registered in `MathServerService._parsers`. To add a new type:
-1. Add enum value to `Models/PlotType.cs`
+Two panel types: `PanelType.Numeric` and `PanelType.DateTime`. Each has a dedicated `IPointParser` implementation registered in `MathServerService._parsers`. To add a new type:
+1. Add enum value to `Models/PanelType.cs`
 2. Implement `IPointParser` in `Services/`
 3. Register in the `_parsers` dictionary in `MathServerService`
 
-**DateTime specifics:** `DateTimePointParser` converts parsed `DateTime` to Unix milliseconds stored as `double` in `PlotPoint.X`. The `ApexPointSeries` for DateTime plots casts `XValue` as `(long)p.X`; Numeric plots cast as `(decimal)p.X`. Keep these casts consistent when modifying chart series markup.
+**DateTime specifics:** `DateTimePointParser` converts parsed `DateTime` to Unix milliseconds stored as `double` in `PanelPoint.X`. The `ApexPointSeries` for DateTime panels casts `XValue` as `(long)p.X`; Numeric panels cast as `(decimal)p.X`. Keep these casts consistent when modifying chart series markup.
 
 ## Chart Rendering Gotchas
 
@@ -39,7 +39,7 @@ Two plot types: `PlotType.Numeric` and `PlotType.DateTime`. Each has a dedicated
 - `ExpressionModel.Label` is the series display name; falls back to `Expression` string if blank.
 - `DefaultColors` in `ExpressionEditor` cycles via `Expressions.Count % DefaultColors.Length` — always append, never reshuffle.
 - Pressing **Enter** (without Shift) in the textarea triggers a single-expression refresh; the **Refresh** button calls `OnRefresh(null)` which refreshes all expressions.
-- `PlotPanel` implements `IAsyncDisposable` to cancel the auto-refresh `CancellationTokenSource`. Any new background task added to `PlotPanel` must be cancelled in `DisposeAsync`.
+- `Panel` implements `IAsyncDisposable` to cancel the auto-refresh `CancellationTokenSource`. Any new background task added to `Panel` must be cancelled in `DisposeAsync`.
 
 ## Build & Config
 
@@ -54,4 +54,3 @@ Set the backend URL in `wwwroot/appsettings.json`:
 ```
 
 There are no automated tests in this project.
-

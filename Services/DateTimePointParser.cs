@@ -13,9 +13,9 @@ public class DateTimePointParser : IPointParser
 
     private const string DateFormat = "dd.MM.yyyy HH:mm:ss";
 
-    public List<PlotPoint> Parse(string raw)
+    public List<PanelPoint> Parse(string raw)
     {
-        var result = new List<PlotPoint>();
+        var result = new List<PanelPoint>();
         foreach (Match m in Regex.Matches(raw))
         {
             if (DateTime.TryParseExact(m.Groups[1].Value, DateFormat,
@@ -23,9 +23,9 @@ public class DateTimePointParser : IPointParser
                 double.TryParse(m.Groups[2].Value, NumberStyles.Float,
                     CultureInfo.InvariantCulture, out var y))
             {
-                // Store Unix milliseconds as double so PlotPoint.X stays a single type
+                // Store Unix milliseconds as double so PanelPoint.X stays a single type
                 var unixMs = (double)new DateTimeOffset(dt, TimeSpan.Zero).ToUnixTimeMilliseconds();
-                result.Add(new PlotPoint(unixMs, y));
+                result.Add(new PanelPoint(unixMs, y));
             }
         }
         return result;

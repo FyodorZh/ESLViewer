@@ -34,11 +34,11 @@
     [Parameter] public ObservableCollection<ExpressionModel> Expressions { get; set; } = new();
     [Parameter] public EventCallback<ExpressionModel?> OnRefresh { get; set; }
     [Parameter] public EventCallback OnColorChanged { get; set; }
-    [Parameter] public PlotType PlotType { get; set; } = PlotType.Numeric;
+    [Parameter] public PanelType PanelType { get; set; } = PanelType.Numeric;
 
-    private string Placeholder => PlotType switch
+    private string Placeholder => PanelType switch
     {
-        PlotType.DateTime => "e.g. my_timeseries()",
+        PanelType.DateTime => "e.g. my_timeseries()",
         _ => "e.g. x^2"
     };
 

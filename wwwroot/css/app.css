@@ -39,8 +39,8 @@ html, body {
     padding: 0.8rem;
 }
 
-/* ── Toolbar (PlotGrid) ──────────────────────────────────── */
-.plot-grid-toolbar {
+/* ── Toolbar (PanelGrid) ──────────────────────────────────── */
+.panel-grid-toolbar {
     display: flex;
     align-items: center;
     gap: 1rem;
@@ -52,7 +52,7 @@ html, body {
     box-shadow: 0 1px 3px rgba(0,0,0,.12);
 }
 
-.plot-grid-toolbar label {
+.panel-grid-toolbar label {
     display: flex;
     align-items: center;
     gap: 0.4rem;
@@ -60,20 +60,20 @@ html, body {
     color: #444;
 }
 
-.plot-grid-toolbar select,
-.plot-grid-toolbar input[type=range] {
+.panel-grid-toolbar select,
+.panel-grid-toolbar input[type=range] {
     cursor: pointer;
 }
 
 /* ── Grid layout ─────────────────────────────────────────── */
-.plot-grid {
+.panel-grid {
     display: grid;
     gap: 0.8rem;
     align-items: start;
 }
 
-/* ── Plot panel ──────────────────────────────────────────── */
-.plot-panel {
+/* ── Panel ───────────────────────────────────────────────── */
+.panel {
     background: #fff;
     border-radius: 8px;
     box-shadow: 0 2px 8px rgba(0,0,0,.10);
@@ -86,7 +86,7 @@ html, body {
     min-height: 320px;
 }
 
-.plot-header {
+.panel-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -96,7 +96,7 @@ html, body {
     flex-shrink: 0;
 }
 
-.plot-title-input {
+.panel-title-input {
     flex: 1;
     border: none;
     background: transparent;
@@ -107,14 +107,14 @@ html, body {
     min-width: 0;
 }
 
-.plot-title-input:hover,
-.plot-title-input:focus {
+.panel-title-input:hover,
+.panel-title-input:focus {
     background: #eef0f3;
     border-radius: 4px;
     padding: 0 4px;
 }
 
-.plot-chart-area {
+.panel-chart-area {
     flex: 1;
     position: relative;
     min-height: 0;
@@ -122,13 +122,13 @@ html, body {
 }
 
 /* ApexCharts injects a div wrapper — make it fill the area too */
-.plot-chart-area > div {
+.panel-chart-area > div {
     width: 100% !important;
     height: 100% !important;
 }
 
-.plot-loading,
-.plot-error {
+.panel-loading,
+.panel-error {
     position: absolute;
     inset: 0;
     display: flex;
@@ -139,7 +139,7 @@ html, body {
     z-index: 10;
 }
 
-.plot-error { color: #c0392b; }
+.panel-error { color: #c0392b; }
 
 /* ── Expression editor ───────────────────────────────────── */
 .expr-editor {
@@ -280,7 +280,7 @@ html, body {
 .loading-progress-text::after { content: var(--blazor-load-percentage-text, "Loading"); }
 
 /* ── Auto-refresh bar ────────────────────────────────────── */
-.plot-autorefresh-bar {
+.panel-autorefresh-bar {
     display: flex;
     align-items: center;
     gap: 0.55rem;
@@ -323,8 +323,8 @@ html, body {
     50%       { opacity: 0.4; transform: scale(0.7); }
 }
 
-/* ── Plot type badge ─────────────────────────────────────── */
-.plot-type-badge {
+/* ── Panel type badge ────────────────────────────────────── */
+.panel-type-badge {
     font-size: 0.7rem;
     background: #e9ecef;
     color: #495057;

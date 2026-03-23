@@ -5,7 +5,7 @@
 @inject IJSRuntime JS
 @implements IAsyncDisposable
 
-<div class="plot-grid-toolbar">
+<div class="panel-grid-toolbar">
     <label>
         Columns:
         <select @bind="_columns">
@@ -16,17 +16,17 @@
         </select>
     </label>
     <label>
-        Plot size:
-        <input type="range" min="280" max="900" step="20" @bind="_plotSize" />
-        <span>@_plotSize px</span>
+        Panel size:
+        <input type="range" min="280" max="900" step="20" @bind="_panelSize" />
+        <span>@_panelSize px</span>
     </label>
     <div class="dropdown d-inline-block">
         <button class="btn-sm btn-primary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
-            + Add plot
+            + Add panel
         </button>
         <ul class="dropdown-menu">
-            <li><button class="dropdown-item" @onclick='() => AddPlot(PlotType.Numeric)'>📈 Numeric</button></li>
-            <li><button class="dropdown-item" @onclick='() => AddPlot(PlotType.DateTime)'>📅 DateTime</button></li>
+            <li><button class="dropdown-item" @onclick='() => AddPanel(PanelType.Numeric)'>📈 Numeric</button></li>
+            <li><button class="dropdown-item" @onclick='() => AddPanel(PanelType.DateTime)'>📅 DateTime</button></li>
         </ul>
     </div>
 
@@ -50,36 +50,36 @@
 
 <a id="state-download-link" href="@_downloadUrl" download="eslviewer-state.json" style="display:none"></a>
 
-<div class="plot-grid" style="grid-template-columns: repeat(@_columns, @(_plotSize)px);">
-    @foreach (var plot in _plots)
+<div class="panel-grid" style="grid-template-columns: repeat(@_columns, @(_panelSize)px);">
+    @foreach (var panel in _panels)
     {
-        var current = plot;
-        <PlotPanel Plot="current"
-                   Width="_plotSize"
-                   Height="@(_plotSize - 80)"
-                   OnRemove="RemovePlot"
-                   @ref="_panelRefs[current.Id]" />
+        var current = panel;
+        <Panel Model="current"
+               Width="_panelSize"
+               Height="@(_panelSize - 80)"
+               OnRemove="RemovePanel"
+               @ref="_panelRefs[current.Id]" />
     }
 </div>
 
 @code {
-    private List<PlotModel> _plots = new();
-    private Dictionary<Guid, PlotPanel?> _panelRefs = new();
+    private List<PanelModel> _panels = new();
+    private Dictionary<Guid, Panel?> _panelRefs = new();
     private int _columns = 2;
-    private int _plotSize = 500;
+    private int _panelSize = 500;
 
     private string? _statusMessage;
     private bool _statusIsError;
     private string _downloadUrl = "#";
 
-    // Phase 7 — auto-save on unload
-    private DotNetObjectReference<PlotGrid>? _dotNetRef;
+    // auto-save on unload
+    private DotNetObjectReference<PanelGrid>? _dotNetRef;
 
     // ── Lifecycle ─────────────────────────────────────────────────────────────
 
     protected override void OnInitialized()
     {
-        _plots.Add(new PlotModel { Title = "Plot 1" });
+        _panels.Add(new PanelModel { Title = "Panel 1" });
         EnsurePanelRefKeys();
     }
 
@@ -92,25 +92,25 @@
         }
     }
 
-    // ── Plot management ───────────────────────────────────────────────────────
+    // ── Panel management ──────────────────────────────────────────────────────
 
-    private void AddPlot(PlotType type)
+    private void AddPanel(PanelType type)
     {
-        var plot = new PlotModel { Title = $"Plot {_plots.Count + 1}", PlotType = type };
-        _plots.Add(plot);
-        _panelRefs[plot.Id] = null;
+        var panel = new PanelModel { Title = $"Panel {_panels.Count + 1}", PanelType = type };
+        _panels.Add(panel);
+        _panelRefs[panel.Id] = null;
     }
 
-    private void RemovePlot(PlotModel plot)
+    private void RemovePanel(PanelModel panel)
     {
-        _plots.Remove(plot);
-        _panelRefs.Remove(plot.Id);
+        _panels.Remove(panel);
+        _panelRefs.Remove(panel.Id);
     }
 
-    /// Ensures every current plot has an entry in the refs dict (needed before first render).
+    /// Ensures every current panel has an entry in the refs dict (needed before first render).
     private void EnsurePanelRefKeys()
     {
-        foreach (var p in _plots)
+        foreach (var p in _panels)
             _panelRefs.TryAdd(p.Id, null);
     }
 
@@ -118,20 +118,20 @@
 
     private async Task<AppSnapshot> CaptureAppSnapshotAsync()
     {
-        var plots = new List<PlotSnapshot>();
-        foreach (var plot in _plots)
+        var panels = new List<PanelSnapshot>();
+        foreach (var panel in _panels)
         {
-            if (_panelRefs.TryGetValue(plot.Id, out var panel) && panel is not null)
-                plots.Add(await panel.CaptureSnapshotAsync());
+            if (_panelRefs.TryGetValue(panel.Id, out var panelRef) && panelRef is not null)
+                panels.Add(await panelRef.CaptureSnapshotAsync());
             else
-                plots.Add(plot.ToSnapshot());
+                panels.Add(panel.ToSnapshot());
         }
         return new AppSnapshot
         {
             Version = "1.0",
             Columns = _columns,
-            PlotSize = _plotSize,
-            Plots = plots,
+            PanelSize = _panelSize,
+            Panels = panels,
         };
     }
 
@@ -139,13 +139,13 @@
 
     private async Task ApplyAppSnapshotAsync(AppSnapshot snapshot)
     {
-        _plots.Clear();
+        _panels.Clear();
         _panelRefs.Clear();
         _columns = snapshot.Columns;
-        _plotSize = snapshot.PlotSize;
+        _panelSize = snapshot.PanelSize;
 
-        foreach (var plotSnap in snapshot.Plots)
-            _plots.Add(PlotModel.FromSnapshot(plotSnap));
+        foreach (var panelSnap in snapshot.Panels)
+            _panels.Add(PanelModel.FromSnapshot(panelSnap));
 
         EnsurePanelRefKeys();
 
@@ -153,17 +153,17 @@
         StateHasChanged();
         await Task.Delay(50);
 
-        // Re-fetch data and restore axis ranges for every plot.
-        for (var i = 0; i < _plots.Count; i++)
+        // Re-fetch data and restore axis ranges for every panel.
+        for (var i = 0; i < _panels.Count; i++)
         {
-            var plot = _plots[i];
-            if (!_panelRefs.TryGetValue(plot.Id, out var panel) || panel is null) continue;
+            var panel = _panels[i];
+            if (!_panelRefs.TryGetValue(panel.Id, out var panelRef) || panelRef is null) continue;
 
-            await panel.RefreshAsync();
+            await panelRef.RefreshAsync();
 
-            var viewRect = snapshot.Plots[i].ViewRect;
+            var viewRect = snapshot.Panels[i].ViewRect;
             if (viewRect is not null)
-                await panel.SetViewRect(viewRect);
+                await panelRef.SetViewRect(viewRect);
         }
     }
 
@@ -244,7 +244,7 @@
         catch (Exception ex) { ShowStatus($"File load failed: {ex.Message}", error: true); }
     }
 
-    // ── Phase 7 — auto-save on unload ─────────────────────────────────────────
+    // ── auto-save on unload ───────────────────────────────────────────────────
 
     [JSInvokable]
     public async Task AutoSaveAsync()
@@ -280,3 +280,4 @@
         _dotNetRef?.Dispose();
     }
 }
+

@@ -15,8 +15,8 @@ public class AppSnapshot
     public string Version { get; set; } = "1.0";
 
     public int Columns { get; set; } = 2;
-    public int PlotSize { get; set; } = 500;
+    public int PanelSize { get; set; } = 500;
 
-    public List<PlotSnapshot> Plots { get; set; } = new();
+    public List<PanelSnapshot> Panels { get; set; } = new();
 }
 
