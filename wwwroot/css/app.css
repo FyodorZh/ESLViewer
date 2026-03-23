@@ -335,3 +335,36 @@ html, body {
     flex-shrink: 0;
     align-self: center;
 }
+
+/* ── Empty panel ─────────────────────────────────────────── */
+.empty-panel {
+    position: relative;
+    background: #f7f8fa;
+    border: 2px dashed #ced4da;
+    border-radius: 8px;
+    box-shadow: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.empty-panel-close {
+    position: absolute;
+    top: 0.4rem;
+    right: 0.5rem;
+}
+
+.empty-panel-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+}
+
+.empty-panel-label {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #adb5bd;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}

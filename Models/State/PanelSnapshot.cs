@@ -19,6 +19,11 @@ public class PanelSnapshot
     public List<ExpressionSnapshot> Expressions { get; set; } = new();
 
     /// <summary>
+    /// Whether the close button is visible on an EmptyPanel. Defaults to true.
+    /// </summary>
+    public bool CanBeClosed { get; set; } = true;
+
+    /// <summary>
     /// Last known visible axis range. Null means "auto" / not yet captured.
     /// </summary>
     public ViewRect? ViewRect { get; set; }

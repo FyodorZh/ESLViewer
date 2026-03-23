@@ -11,6 +11,13 @@ public class PanelModel
     public ObservableCollection<ExpressionModel> Expressions { get; set; } = new();
 
     /// <summary>
+    /// Controls whether the close (×) button is shown on an EmptyPanel.
+    /// Has no effect on other panel types (they always show the close button).
+    /// Defaults to <c>true</c>.
+    /// </summary>
+    public bool CanBeClosed { get; set; } = true;
+
+    /// <summary>
     /// Creates a snapshot of this panel's persistable state.
     /// ViewRect is left null here — it is populated asynchronously by
     /// Panel.CaptureSnapshotAsync() via JS interop.
@@ -20,6 +27,7 @@ public class PanelModel
         Title = Title,
         PanelType = PanelType.ToString(),
         Expressions = Expressions.Select(e => e.ToSnapshot()).ToList(),
+        CanBeClosed = CanBeClosed,
         ViewRect = null,
     };
 
@@ -33,6 +41,7 @@ public class PanelModel
         {
             Title = snapshot.Title,
             PanelType = Enum.TryParse<PanelType>(snapshot.PanelType, out var pt) ? pt : PanelType.Numeric,
+            CanBeClosed = snapshot.CanBeClosed,
         };
         foreach (var exprSnap in snapshot.Expressions)
         {
@@ -43,4 +52,3 @@ public class PanelModel
         return model;
     }
 }
-

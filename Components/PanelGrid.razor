@@ -27,6 +27,7 @@
         <ul class="dropdown-menu">
             <li><button class="dropdown-item" @onclick='() => AddPanel(PanelType.Numeric)'>📈 Numeric</button></li>
             <li><button class="dropdown-item" @onclick='() => AddPanel(PanelType.DateTime)'>📅 DateTime</button></li>
+            <li><button class="dropdown-item" @onclick='() => AddPanel(PanelType.Empty)'>⬜ Empty</button></li>
         </ul>
     </div>
 
@@ -54,11 +55,22 @@
     @foreach (var panel in _panels)
     {
         var current = panel;
-        <Panel Model="current"
-               Width="_panelSize"
-               Height="@(_panelSize - 80)"
-               OnRemove="RemovePanel"
-               @ref="_panelRefs[current.Id]" />
+        @if (current.PanelType == PanelType.Empty)
+        {
+            <EmptyPanel Model="current"
+                        Width="_panelSize"
+                        Height="@(_panelSize - 80)"
+                        OnRemove="RemovePanel"
+                        OnReplace="type => ReplacePanel(current, type)" />
+        }
+        else
+        {
+            <Panel Model="current"
+                   Width="_panelSize"
+                   Height="@(_panelSize - 80)"
+                   OnRemove="RemovePanel"
+                   @ref="_panelRefs[current.Id]" />
+        }
     }
 </div>
 
@@ -105,6 +117,21 @@
     {
         _panels.Remove(panel);
         _panelRefs.Remove(panel.Id);
+    }
+
+    private void ReplacePanel(PanelModel oldPanel, PanelType newType)
+    {
+        var index = _panels.IndexOf(oldPanel);
+        if (index < 0) return;
+
+        _panelRefs.Remove(oldPanel.Id);
+        var newPanel = new PanelModel
+        {
+            Title = $"Panel {_panels.Count}",
+            PanelType = newType
+        };
+        _panels[index] = newPanel;
+        _panelRefs[newPanel.Id] = null;
     }
 
     /// Ensures every current panel has an entry in the refs dict (needed before first render).
