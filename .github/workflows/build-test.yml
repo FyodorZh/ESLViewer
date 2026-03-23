@@ -1,16 +1,28 @@
-name: .NET Build
+name: .NET Build, Test and Deploy
 
-on: [push, pull_request]
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
 
     - name: Set up .NET SDK
-      uses: actions/setup-dotnet@v1
+      uses: actions/setup-dotnet@v4
       with:
         dotnet-version: 10.0.x
 
@@ -22,3 +34,32 @@ jobs:
 
     - name: Run unit tests
       run: dotnet test --no-restore --verbosity normal
+
+    - name: Publish
+      run: dotnet publish -c Release -o release
+
+    - name: Fix base href for GitHub Pages sub-path
+      run: sed -i 's|<base href="/" />|<base href="/${{ github.event.repository.name }}/" />|g' release/wwwroot/index.html
+
+    - name: Add 404.html for SPA routing
+      run: cp release/wwwroot/index.html release/wwwroot/404.html
+
+    - name: Add .nojekyll to bypass Jekyll processing
+      run: touch release/wwwroot/.nojekyll
+
+    - name: Upload Pages artifact
+      uses: actions/upload-pages-artifact@v3
+      with:
+        path: release/wwwroot
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+    - name: Deploy to GitHub Pages
+      id: deployment
+      uses: actions/deploy-pages@v4
