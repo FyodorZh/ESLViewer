@@ -29,6 +29,13 @@
         <span class="dismiss">🗙</span>
     </div>
     <script src="_framework/blazor.webassembly#[.{fingerprint}].js"></script>
+    <script>
+        document.addEventListener('keydown', function (e) {
+            if (e.target.classList.contains('expr-input') && e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+            }
+        }, true);
+    </script>
 </body>
 
 </html>

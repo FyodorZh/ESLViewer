@@ -7,12 +7,10 @@
         var current = expr;
         <div class="expr-row">
             <span class="expr-color-dot" style="background:@current.Color;"></span>
-            <input class="expr-input"
-                   type="text"
-                   placeholder="e.g. x^2"
-                   value="@current.Expression"
-                   @oninput="e => current.Expression = e.Value?.ToString() ?? string.Empty"
-                   @onkeydown="e => OnKeyDown(e, current)" />
+            <textarea class="expr-input"
+                      placeholder="e.g. x^2"
+                      @oninput="e => current.Expression = e.Value?.ToString() ?? string.Empty"
+                      @onkeydown="e => OnKeyDown(e, current)">@current.Expression</textarea>
             <input class="expr-color"
                    type="color"
                    value="@current.Color"
@@ -57,7 +55,7 @@
 
     private void OnKeyDown(KeyboardEventArgs e, ExpressionModel expr)
     {
-        if (e.Key == "Enter")
+        if (e.Key == "Enter" && !e.ShiftKey)
             OnRefresh.InvokeAsync(expr);
     }
 }
