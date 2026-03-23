@@ -38,5 +38,13 @@ public class PanelSnapshot
 
     /// <summary>Snapshots of child cells (row-major order). Only used for Grid panels.</summary>
     public List<PanelSnapshot> GridCells { get; set; } = new();
+
+    // ── Dashboard-panel specific ─────────────────────────────────────────────
+
+    public string? DashboardCommand { get; set; }
+    public string? DashboardTextColor { get; set; }
+    public string? DashboardBackgroundColor { get; set; }
+    public bool DashboardAutoRefreshEnabled { get; set; }
+    public string? DashboardAutoRefreshInterval { get; set; }
 }
 

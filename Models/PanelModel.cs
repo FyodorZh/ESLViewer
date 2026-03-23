@@ -40,6 +40,9 @@ public class PanelModel
         if (snapshot.PanelType == "Grid")
             return GridPanelModel.FromGridSnapshot(snapshot);
 
+        if (snapshot.PanelType == "Dashboard")
+            return DashboardPanelModel.FromDashboardSnapshot(snapshot);
+
         var model = new PanelModel
         {
             Title = snapshot.Title,

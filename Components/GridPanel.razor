@@ -32,6 +32,12 @@
                            OnRemove="m => ReplaceCellWithEmpty(m)"
                            @ref="_gridCellRefs[nestedGrid.Id]" />
             }
+            else if (currentCell is DashboardPanelModel dashCell)
+            {
+                <DashboardPanel Model="dashCell"
+                                OnRemove="m => ReplaceCellWithEmpty(m)"
+                                @ref="_dashboardCellRefs[dashCell.Id]" />
+            }
             else if (currentCell.PanelType == PanelType.Empty)
             {
                 <EmptyPanel Model="currentCell"
@@ -54,7 +60,7 @@
 
     private Dictionary<Guid, Panel?> _cellRefs = new();
     private Dictionary<Guid, GridPanel?> _gridCellRefs = new();
-
+    private Dictionary<Guid, DashboardPanel?> _dashboardCellRefs = new();
 
     // ── Cell mutations ────────────────────────────────────────────────────────
 
@@ -92,9 +98,12 @@
         var idx = Model.Cells.IndexOf(oldCell);
         if (idx < 0) return;
 
-        PanelModel newCell = type == PanelType.Grid
-            ? new GridPanelModel()
-            : new PanelModel { Title = "Panel", PanelType = type };
+        PanelModel newCell = type switch
+        {
+            PanelType.Grid      => new GridPanelModel(),
+            PanelType.Dashboard => new DashboardPanelModel(),
+            _                   => new PanelModel { Title = "Panel", PanelType = type }
+        };
 
         Model.Cells[idx] = newCell;
         StateHasChanged();
@@ -110,6 +119,7 @@
 
         _cellRefs.Remove(model.Id);
         _gridCellRefs.Remove(model.Id);
+        _dashboardCellRefs.Remove(model.Id);
         Model.Cells[idx] = new PanelModel { PanelType = PanelType.Empty, CanBeClosed = false };
         StateHasChanged();
     }
@@ -121,6 +131,8 @@
             if (!ids.Contains(key)) _cellRefs.Remove(key);
         foreach (var key in _gridCellRefs.Keys.ToList())
             if (!ids.Contains(key)) _gridCellRefs.Remove(key);
+        foreach (var key in _dashboardCellRefs.Keys.ToList())
+            if (!ids.Contains(key)) _dashboardCellRefs.Remove(key);
     }
 
     // ── Public API (used by PanelGrid) ────────────────────────────────────────
@@ -132,6 +144,8 @@
             if (panelRef is not null) await panelRef.RefreshAsync();
         foreach (var (_, gridRef) in _gridCellRefs)
             if (gridRef is not null) await gridRef.RefreshAllAsync();
+        foreach (var (_, dashRef) in _dashboardCellRefs)
+            if (dashRef is not null) await dashRef.RefreshAsync();
     }
 
     /// <summary>Capture a full snapshot including nested panels' axis ranges.</summary>
@@ -143,10 +157,13 @@
             var cell = Model.Cells[i];
             if (cell is GridPanelModel && _gridCellRefs.TryGetValue(cell.Id, out var gridRef) && gridRef is not null)
                 snapshot.GridCells[i] = await gridRef.CaptureSnapshotAsync();
+            else if (cell is DashboardPanelModel && _dashboardCellRefs.TryGetValue(cell.Id, out var dashRef) && dashRef is not null)
+                snapshot.GridCells[i] = dashRef.CaptureSnapshot();
             else if (cell.PanelType != PanelType.Empty && _cellRefs.TryGetValue(cell.Id, out var panelRef) && panelRef is not null)
                 snapshot.GridCells[i] = await panelRef.CaptureSnapshotAsync();
         }
         return snapshot;
     }
 }
+
 

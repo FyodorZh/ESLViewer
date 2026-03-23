@@ -30,4 +30,21 @@ public class MathServerService
             return [];
         }
     }
+
+    /// <summary>
+    /// Calls the backend and returns the raw response string unchanged.
+    /// Returns an empty string on any HTTP or network error.
+    /// </summary>
+    public async Task<string> EvaluateRawAsync(string command)
+    {
+        var encoded = Uri.EscapeDataString(command);
+        try
+        {
+            return await _http.GetStringAsync($"invoke?script={encoded}");
+        }
+        catch
+        {
+            return string.Empty;
+        }
+    }
 }

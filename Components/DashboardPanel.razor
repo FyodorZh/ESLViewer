@@ -1,0 +1,208 @@
+    @using ESLViewer.Models
+@using ESLViewer.Models.State
+@using ESLViewer.Services
+@inject MathServerService MathServer
+@implements IAsyncDisposable
+
+<div class="panel dashboard-panel">
+    <div class="panel-header">
+        <input class="panel-title-input" type="text" @bind="Model.Title" @bind:event="oninput" />
+        <span class="panel-type-badge">Dashboard</span>
+        @if (_autoRefreshEnabled)
+        {
+            <span class="ar-active-dot" title="Auto-refresh active"></span>
+        }
+        <button class="btn-icon btn-danger" title="Remove panel" @onclick="() => OnRemove.InvokeAsync(Model)">&#x2715;</button>
+    </div>
+
+    @if (_showSetup)
+    {
+        <div class="dashboard-setup-panel">
+            <div class="dashboard-setup-row">
+                <label class="dashboard-setup-label">Command</label>
+                <textarea class="dashboard-command-input expr-input"
+                          placeholder="Enter server command..."
+                          @bind="Model.Command"
+                          @bind:event="oninput"></textarea>
+                <button class="btn-sm btn-primary" @onclick="RefreshAsync" title="Run command">&#8635;</button>
+            </div>
+            <div class="dashboard-setup-row">
+                <label class="dashboard-setup-label">Text</label>
+                <input type="color"
+                       class="expr-color"
+                       value="@Model.TextColor"
+                       title="Text color"
+                       @oninput="e => { Model.TextColor = e.Value?.ToString() ?? Model.TextColor; StateHasChanged(); }" />
+                <label class="dashboard-setup-label ms-2">Background</label>
+                <input type="color"
+                       class="expr-color"
+                       value="@Model.BackgroundColor"
+                       title="Background color"
+                       @oninput="e => { Model.BackgroundColor = e.Value?.ToString() ?? Model.BackgroundColor; StateHasChanged(); }" />
+                <label class="ar-label ms-2">
+                    <input type="checkbox"
+                           checked="@_autoRefreshEnabled"
+                           @onchange="OnAutoRefreshToggled" />
+                    Auto-refresh
+                </label>
+                @if (_autoRefreshEnabled)
+                {
+                    <select class="ar-select" value="@_autoRefreshInterval" @onchange="OnIntervalChanged">
+                        <option value="Seconds3">3 s</option>
+                        <option value="Seconds5">5 s</option>
+                        <option value="Seconds10">10 s</option>
+                        <option value="Minute1">1 min</option>
+                        <option value="Minute10">10 min</option>
+                        <option value="Hour1">1 hour</option>
+                    </select>
+                }
+            </div>
+        </div>
+    }
+
+    <div class="dashboard-text-view"
+         style="color: @Model.TextColor; background: @Model.BackgroundColor; font-size: @(_fontSize)px;"
+         @ondblclick="ToggleSetup">
+        @if (string.IsNullOrEmpty(_result))
+        {
+            <span class="dashboard-placeholder">Double-click to configure…</span>
+        }
+        else
+        {
+            @_result
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public DashboardPanelModel Model { get; set; } = default!;
+    [Parameter] public EventCallback<PanelModel> OnRemove { get; set; }
+
+    private string _result = string.Empty;
+    private bool _showSetup;
+
+    // Auto-refresh
+    private bool _autoRefreshEnabled;
+    private AutoRefreshInterval _autoRefreshInterval = AutoRefreshInterval.Seconds5;
+    private CancellationTokenSource? _cts;
+
+    protected override void OnInitialized()
+    {
+        _autoRefreshEnabled = Model.AutoRefreshEnabled;
+        _autoRefreshInterval = Model.AutoRefreshInterval;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            if (!string.IsNullOrWhiteSpace(Model.Command))
+                await RefreshAsync();
+            if (_autoRefreshEnabled)
+                StartAutoRefreshLoop();
+        }
+    }
+
+    // Dynamic font size: more text → smaller font, clamped between 9px and 48px.
+    private int _fontSize
+    {
+        get
+        {
+            if (string.IsNullOrEmpty(_result)) return 24;
+            var lines = _result.Split('\n').Length;
+            var maxLen = _result.Split('\n').Max(l => l.Length);
+            var byLines = 300 / (lines + 2);
+            var byWidth = 600 / (maxLen + 4);
+            return Math.Max(9, Math.Min(48, Math.Min(byLines, byWidth)));
+        }
+    }
+
+    private void ToggleSetup() => _showSetup = !_showSetup;
+
+    public async Task RefreshAsync()
+    {
+        if (string.IsNullOrWhiteSpace(Model.Command)) return;
+        _result = await MathServer.EvaluateRawAsync(Model.Command);
+        Model.AutoRefreshEnabled = _autoRefreshEnabled;
+        Model.AutoRefreshInterval = _autoRefreshInterval;
+        StateHasChanged();
+    }
+
+    // ── Auto-refresh ──────────────────────────────────────────────────────────
+
+    private void OnAutoRefreshToggled(ChangeEventArgs e)
+    {
+        _autoRefreshEnabled = (bool)(e.Value ?? false);
+        Model.AutoRefreshEnabled = _autoRefreshEnabled;
+        if (_autoRefreshEnabled)
+            StartAutoRefreshLoop();
+        else
+            StopAutoRefresh();
+    }
+
+    private void OnIntervalChanged(ChangeEventArgs e)
+    {
+        if (Enum.TryParse<AutoRefreshInterval>(e.Value?.ToString(), out var interval))
+        {
+            _autoRefreshInterval = interval;
+            Model.AutoRefreshInterval = interval;
+        }
+        if (_autoRefreshEnabled)
+        {
+            StopAutoRefresh();
+            StartAutoRefreshLoop();
+        }
+    }
+
+    private TimeSpan GetRefreshTimeSpan() => _autoRefreshInterval switch
+    {
+        AutoRefreshInterval.Seconds3  => TimeSpan.FromSeconds(3),
+        AutoRefreshInterval.Seconds5  => TimeSpan.FromSeconds(5),
+        AutoRefreshInterval.Seconds10 => TimeSpan.FromSeconds(10),
+        AutoRefreshInterval.Minute1   => TimeSpan.FromMinutes(1),
+        AutoRefreshInterval.Minute10  => TimeSpan.FromMinutes(10),
+        AutoRefreshInterval.Hour1     => TimeSpan.FromHours(1),
+        _                             => TimeSpan.FromSeconds(5)
+    };
+
+    private void StartAutoRefreshLoop()
+    {
+        StopAutoRefresh();
+        _cts = new CancellationTokenSource();
+        _ = AutoRefreshLoopAsync(_cts.Token);
+    }
+
+    private async Task AutoRefreshLoopAsync(CancellationToken token)
+    {
+        using var timer = new PeriodicTimer(GetRefreshTimeSpan());
+        try
+        {
+            while (await timer.WaitForNextTickAsync(token))
+                await RefreshAsync();
+        }
+        catch (OperationCanceledException) { }
+    }
+
+    private void StopAutoRefresh()
+    {
+        _cts?.Cancel();
+        _cts?.Dispose();
+        _cts = null;
+    }
+
+    // ── Snapshot ──────────────────────────────────────────────────────────────
+
+    public PanelSnapshot CaptureSnapshot()
+    {
+        Model.AutoRefreshEnabled = _autoRefreshEnabled;
+        Model.AutoRefreshInterval = _autoRefreshInterval;
+        return Model.ToSnapshot();
+    }
+
+    public ValueTask DisposeAsync()
+    {
+        StopAutoRefresh();
+        return ValueTask.CompletedTask;
+    }
+}
+

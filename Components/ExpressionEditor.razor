@@ -1,21 +1,20 @@
 @using ESLViewer.Models
 @using System.Collections.ObjectModel
 
-<div class="expr-editor">
+<div class="expr-panel">
     @foreach (var expr in Expressions)
     {
         var current = expr;
         <div class="expr-row">
-            <span class="expr-color-dot" style="background:@current.Color;"></span>
-            <textarea class="expr-input"
-                      placeholder="@Placeholder"
-                      @oninput="e => current.Expression = e.Value?.ToString() ?? string.Empty"
-                      @onkeydown="e => OnKeyDown(e, current)">@current.Expression</textarea>
             <input class="expr-color"
                    type="color"
                    value="@current.Color"
                    title="Series color"
                    @oninput="e => { current.Color = e.Value?.ToString() ?? current.Color; OnColorChanged.InvokeAsync(); }" />
+            <textarea class="expr-input"
+                      placeholder="@Placeholder"
+                      @oninput="e => current.Expression = e.Value?.ToString() ?? string.Empty"
+                      @onkeydown="e => OnKeyDown(e, current)">@current.Expression</textarea>
             <input class="expr-toggle"
                    type="checkbox"
                    checked="@current.IsEnabled"
