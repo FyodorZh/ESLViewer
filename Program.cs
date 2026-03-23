@@ -11,5 +11,6 @@ builder.RootComponents.Add<HeadOutlet>("head::after");
 var serverUrl = builder.Configuration["ServerUrl"] ?? builder.HostEnvironment.BaseAddress;
 builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(serverUrl), DefaultVersionPolicy = HttpVersionPolicy.RequestVersionOrLower});
 builder.Services.AddScoped<MathServerService>();
+builder.Services.AddScoped<StateService>();
 
 await builder.Build().RunAsync();

@@ -1,4 +1,9 @@
 @using ESLViewer.Models
+@using ESLViewer.Models.State
+@using ESLViewer.Services
+@inject StateService StateService
+@inject IJSRuntime JS
+@implements IAsyncDisposable
 
 <div class="plot-grid-toolbar">
     <label>
@@ -24,7 +29,26 @@
             <li><button class="dropdown-item" @onclick='() => AddPlot(PlotType.DateTime)'>📅 DateTime</button></li>
         </ul>
     </div>
+
+    <div class="d-inline-flex gap-1 ms-3 align-items-center flex-wrap">
+        <button class="btn-sm btn-outline-secondary" title="Save state to cookie" @onclick="SaveToCookieAsync">🍪 Save</button>
+        <button class="btn-sm btn-outline-secondary" title="Restore state from cookie" @onclick="LoadFromCookieAsync">🍪 Load</button>
+        <button class="btn-sm btn-outline-secondary" title="Copy state to clipboard" @onclick="CopyToClipboardAsync">📋 Copy</button>
+        <button class="btn-sm btn-outline-secondary" title="Paste state from clipboard" @onclick="PasteFromClipboardAsync">📋 Paste</button>
+        <button class="btn-sm btn-outline-secondary" title="Download state as JSON" @onclick="DownloadJsonAsync">⬇ JSON</button>
+        <label class="btn-sm btn-outline-secondary mb-0" title="Load state from JSON file" style="cursor:pointer">
+            ⬆ Open
+            <InputFile OnChange="LoadFromFileAsync" accept=".json" style="display:none" />
+        </label>
+    </div>
+
+    @if (_statusMessage is not null)
+    {
+        <span class="ms-2 small @(_statusIsError ? "text-danger" : "text-success")">@_statusMessage</span>
+    }
 </div>
+
+<a id="state-download-link" href="@_downloadUrl" download="eslviewer-state.json" style="display:none"></a>
 
 <div class="plot-grid" style="grid-template-columns: repeat(@_columns, @(_plotSize)px);">
     @foreach (var plot in _plots)
@@ -33,27 +57,226 @@
         <PlotPanel Plot="current"
                    Width="_plotSize"
                    Height="@(_plotSize - 80)"
-                   OnRemove="RemovePlot" />
+                   OnRemove="RemovePlot"
+                   @ref="_panelRefs[current.Id]" />
     }
 </div>
 
 @code {
     private List<PlotModel> _plots = new();
+    private Dictionary<Guid, PlotPanel?> _panelRefs = new();
     private int _columns = 2;
     private int _plotSize = 500;
+
+    private string? _statusMessage;
+    private bool _statusIsError;
+    private string _downloadUrl = "#";
+
+    // Phase 7 — auto-save on unload
+    private DotNetObjectReference<PlotGrid>? _dotNetRef;
+
+    // ── Lifecycle ─────────────────────────────────────────────────────────────
 
     protected override void OnInitialized()
     {
         _plots.Add(new PlotModel { Title = "Plot 1" });
+        EnsurePanelRefKeys();
     }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _dotNetRef = DotNetObjectReference.Create(this);
+            await JS.InvokeVoidAsync("ESLViewer.registerBeforeUnload", _dotNetRef);
+        }
+    }
+
+    // ── Plot management ───────────────────────────────────────────────────────
 
     private void AddPlot(PlotType type)
     {
-        _plots.Add(new PlotModel { Title = $"Plot {_plots.Count + 1}", PlotType = type });
+        var plot = new PlotModel { Title = $"Plot {_plots.Count + 1}", PlotType = type };
+        _plots.Add(plot);
+        _panelRefs[plot.Id] = null;
     }
 
     private void RemovePlot(PlotModel plot)
     {
         _plots.Remove(plot);
+        _panelRefs.Remove(plot.Id);
+    }
+
+    /// Ensures every current plot has an entry in the refs dict (needed before first render).
+    private void EnsurePanelRefKeys()
+    {
+        foreach (var p in _plots)
+            _panelRefs.TryAdd(p.Id, null);
+    }
+
+    // ── Snapshot capture ──────────────────────────────────────────────────────
+
+    private async Task<AppSnapshot> CaptureAppSnapshotAsync()
+    {
+        var plots = new List<PlotSnapshot>();
+        foreach (var plot in _plots)
+        {
+            if (_panelRefs.TryGetValue(plot.Id, out var panel) && panel is not null)
+                plots.Add(await panel.CaptureSnapshotAsync());
+            else
+                plots.Add(plot.ToSnapshot());
+        }
+        return new AppSnapshot
+        {
+            Version = "1.0",
+            Columns = _columns,
+            PlotSize = _plotSize,
+            Plots = plots,
+        };
+    }
+
+    // ── Snapshot apply ────────────────────────────────────────────────────────
+
+    private async Task ApplyAppSnapshotAsync(AppSnapshot snapshot)
+    {
+        _plots.Clear();
+        _panelRefs.Clear();
+        _columns = snapshot.Columns;
+        _plotSize = snapshot.PlotSize;
+
+        foreach (var plotSnap in snapshot.Plots)
+            _plots.Add(PlotModel.FromSnapshot(plotSnap));
+
+        EnsurePanelRefKeys();
+
+        // Yield so Blazor can re-render and populate the @ref dictionary.
+        StateHasChanged();
+        await Task.Delay(50);
+
+        // Re-fetch data and restore axis ranges for every plot.
+        for (var i = 0; i < _plots.Count; i++)
+        {
+            var plot = _plots[i];
+            if (!_panelRefs.TryGetValue(plot.Id, out var panel) || panel is null) continue;
+
+            await panel.RefreshAsync();
+
+            var viewRect = snapshot.Plots[i].ViewRect;
+            if (viewRect is not null)
+                await panel.SetViewRect(viewRect);
+        }
+    }
+
+    // ── Toolbar handlers ──────────────────────────────────────────────────────
+
+    private async Task SaveToCookieAsync()
+    {
+        try
+        {
+            var snap = await CaptureAppSnapshotAsync();
+            await StateService.SaveToCookieAsync(snap, JS);
+            ShowStatus("Saved to cookie.");
+        }
+        catch (Exception ex) { ShowStatus($"Save failed: {ex.Message}", error: true); }
+    }
+
+    private async Task LoadFromCookieAsync()
+    {
+        try
+        {
+            var snap = await StateService.LoadFromCookieAsync(JS);
+            if (snap is null) { ShowStatus("No saved state found in cookie.", error: true); return; }
+            await ApplyAppSnapshotAsync(snap);
+            ShowStatus("Loaded from cookie.");
+        }
+        catch (Exception ex) { ShowStatus($"Load failed: {ex.Message}", error: true); }
+    }
+
+    private async Task CopyToClipboardAsync()
+    {
+        try
+        {
+            var snap = await CaptureAppSnapshotAsync();
+            await StateService.SaveToClipboardAsync(snap, JS);
+            ShowStatus("Copied to clipboard.");
+        }
+        catch (Exception ex) { ShowStatus($"Copy failed: {ex.Message}", error: true); }
+    }
+
+    private async Task PasteFromClipboardAsync()
+    {
+        try
+        {
+            var snap = await StateService.LoadFromClipboardAsync(JS);
+            if (snap is null) { ShowStatus("Clipboard does not contain valid state JSON.", error: true); return; }
+            await ApplyAppSnapshotAsync(snap);
+            ShowStatus("Loaded from clipboard.");
+        }
+        catch (Exception ex) { ShowStatus($"Paste failed: {ex.Message}", error: true); }
+    }
+
+    private async Task DownloadJsonAsync()
+    {
+        try
+        {
+            var snap = await CaptureAppSnapshotAsync();
+            _downloadUrl = StateService.GetDownloadDataUrl(snap);
+            StateHasChanged();
+            await JS.InvokeVoidAsync("ESLViewer.clickElement", "state-download-link");
+            ShowStatus("Download started.");
+        }
+        catch (Exception ex) { ShowStatus($"Download failed: {ex.Message}", error: true); }
+    }
+
+    private async Task LoadFromFileAsync(InputFileChangeEventArgs e)
+    {
+        try
+        {
+            var file = e.File;
+            using var stream = file.OpenReadStream(maxAllowedSize: 1024 * 1024); // 1 MB limit
+            using var reader = new System.IO.StreamReader(stream);
+            var content = await reader.ReadToEndAsync();
+            var snap = StateService.LoadFromFileContent(content);
+            if (snap is null) { ShowStatus("File does not contain valid state JSON.", error: true); return; }
+            await ApplyAppSnapshotAsync(snap);
+            ShowStatus($"Loaded from \"{file.Name}\".");
+        }
+        catch (Exception ex) { ShowStatus($"File load failed: {ex.Message}", error: true); }
+    }
+
+    // ── Phase 7 — auto-save on unload ─────────────────────────────────────────
+
+    [JSInvokable]
+    public async Task AutoSaveAsync()
+    {
+        try
+        {
+            var snap = await CaptureAppSnapshotAsync();
+            await StateService.SaveToCookieAsync(snap, JS);
+        }
+        catch { /* best-effort — silently ignore */ }
+    }
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
+
+    private void ShowStatus(string message, bool error = false)
+    {
+        _statusMessage = message;
+        _statusIsError = error;
+        StateHasChanged();
+        // Auto-clear after 4 s (fire-and-forget)
+        _ = Task.Delay(4000).ContinueWith(_ =>
+        {
+            _statusMessage = null;
+            InvokeAsync(StateHasChanged);
+        });
+    }
+
+    // ── IAsyncDisposable ──────────────────────────────────────────────────────
+
+    public async ValueTask DisposeAsync()
+    {
+        try { await JS.InvokeVoidAsync("ESLViewer.unregisterBeforeUnload"); } catch { }
+        _dotNetRef?.Dispose();
     }
 }

@@ -1,7 +1,9 @@
 @using ESLViewer.Models
+@using ESLViewer.Models.State
 @using ESLViewer.Services
 @using ApexCharts
 @inject MathServerService MathServer
+@inject IJSRuntime JS
 @implements IAsyncDisposable
 
 <div class="plot-panel" style="width:@(Width)px; height:@(Height)px;">
@@ -32,7 +34,7 @@
         }
     </div>
 
-    <div class="plot-chart-area">
+    <div class="plot-chart-area" id="chart-container-@Plot.Id">
         @if (_loading)
         {
             <div class="plot-loading">Loading&#8230;</div>
@@ -300,7 +302,56 @@
         _cts = null;
     }
 
+    // ── Snapshot / ViewRect interop ───────────────────────────────────────────
+
+    /// <summary>
+    /// Reads the current chart zoom/pan range via JS interop.
+    /// Returns a ViewRect whose fields are null when the axis is at auto-scale.
+    /// </summary>
+    public async Task<ViewRect> GetViewRect()
+    {
+        try
+        {
+            var result = await JS.InvokeAsync<ViewRect?>(
+                "ESLViewer.getChartAxisRange", $"chart-container-{Plot.Id}");
+            return result ?? new ViewRect();
+        }
+        catch
+        {
+            return new ViewRect();
+        }
+    }
+
+    /// <summary>
+    /// Restores the chart zoom/pan range via JS interop.
+    /// Null fields in <paramref name="rect"/> leave the corresponding axis at auto-scale.
+    /// </summary>
+    public async Task SetViewRect(ViewRect rect)
+    {
+        try
+        {
+            await JS.InvokeVoidAsync(
+                "ESLViewer.setChartAxisRange",
+                $"chart-container-{Plot.Id}",
+                rect.XMin, rect.XMax,
+                rect.YMin, rect.YMax);
+        }
+        catch { /* chart may not be ready — silently ignore */ }
+    }
+
+    /// <summary>
+    /// Captures the full persistable state for this plot, including the
+    /// current chart axis range obtained via JS interop.
+    /// </summary>
+    public async Task<PlotSnapshot> CaptureSnapshotAsync()
+    {
+        var snapshot = Plot.ToSnapshot();
+        snapshot.ViewRect = await GetViewRect();
+        return snapshot;
+    }
+
     public ValueTask DisposeAsync()
+
     {
         StopAutoRefresh();
         return ValueTask.CompletedTask;
