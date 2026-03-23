@@ -6,39 +6,13 @@
 @implements IAsyncDisposable
 
 <div class="panel-grid-toolbar">
-    <label>
-        Columns:
-        <select @bind="_columns">
-            <option value="1">1</option>
-            <option value="2">2</option>
-            <option value="3">3</option>
-            <option value="4">4</option>
-        </select>
-    </label>
-    <label>
-        Panel size:
-        <input type="range" min="280" max="900" step="20" @bind="_panelSize" />
-        <span>@_panelSize px</span>
-    </label>
-    <div class="dropdown d-inline-block">
-        <button class="btn-sm btn-primary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
-            + Add panel
-        </button>
-        <ul class="dropdown-menu">
-            <li><button class="dropdown-item" @onclick='() => AddPanel(PanelType.Numeric)'>📈 Numeric</button></li>
-            <li><button class="dropdown-item" @onclick='() => AddPanel(PanelType.DateTime)'>📅 DateTime</button></li>
-            <li><button class="dropdown-item" @onclick='() => AddPanel(PanelType.Empty)'>⬜ Empty</button></li>
-            <li><button class="dropdown-item" @onclick='() => AddPanel(PanelType.Grid)'>🔲 Grid</button></li>
-        </ul>
-    </div>
-
-    <div class="d-inline-flex gap-1 ms-3 align-items-center flex-wrap">
+    <div class="d-inline-flex gap-1 align-items-center flex-wrap">
         <button class="btn-sm btn-outline-secondary" title="Save state to cookie" @onclick="SaveToCookieAsync">🍪 Save</button>
         <button class="btn-sm btn-outline-secondary" title="Restore state from cookie" @onclick="LoadFromCookieAsync">🍪 Load</button>
         <button class="btn-sm btn-outline-secondary" title="Copy state to clipboard" @onclick="CopyToClipboardAsync">📋 Copy</button>
         <button class="btn-sm btn-outline-secondary" title="Paste state from clipboard" @onclick="PasteFromClipboardAsync">📋 Paste</button>
-        <button class="btn-sm btn-outline-secondary" title="Download state as JSON" @onclick="DownloadJsonAsync">⬇ JSON</button>
-        <label class="btn-sm btn-outline-secondary mb-0" title="Load state from JSON file" style="cursor:pointer">
+        <button class="btn-sm btn-outline-secondary" title="Download state as JSON" @onclick="DownloadJsonAsync">⬇ Save</button>
+        <label class="btn-sm btn-outline-secondary" title="Load state from JSON file" style="cursor:pointer">
             ⬆ Open
             <InputFile OnChange="LoadFromFileAsync" accept=".json" style="display:none" />
         </label>
@@ -52,31 +26,25 @@
 
 <a id="state-download-link" href="@_downloadUrl" download="eslviewer-state.json" style="display:none"></a>
 
-<div class="panel-grid" style="grid-template-columns: repeat(@_columns, @(_panelSize)px);">
+<div class="panel-grid">
     @foreach (var panel in _panels)
     {
         var current = panel;
         @if (current is GridPanelModel gridModel)
         {
             <GridPanel Model="gridModel"
-                       Width="_panelSize"
-                       Height="@(_panelSize - 80)"
                        OnRemove="RemovePanel"
                        @ref="_gridPanelRefs[gridModel.Id]" />
         }
         else if (current.PanelType == PanelType.Empty)
         {
             <EmptyPanel Model="current"
-                        Width="_panelSize"
-                        Height="@(_panelSize - 80)"
                         OnRemove="RemovePanel"
                         OnReplace="type => ReplacePanel(current, type)" />
         }
         else
         {
             <Panel Model="current"
-                   Width="_panelSize"
-                   Height="@(_panelSize - 80)"
                    OnRemove="RemovePanel"
                    @ref="_panelRefs[current.Id]" />
         }
@@ -101,7 +69,7 @@
 
     protected override void OnInitialized()
     {
-        _panels.Add(new GridPanelModel { Title = "Grid 1" });
+        _panels.Add(new GridPanelModel { Title = "Grid 1", CanBeClosed = false });
         EnsurePanelRefKeys();
     }
 

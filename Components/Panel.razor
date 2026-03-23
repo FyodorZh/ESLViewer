@@ -6,7 +6,7 @@
 @inject IJSRuntime JS
 @implements IAsyncDisposable
 
-<div class="panel" style="width:@(Width)px; height:@(Height)px;">
+<div class="panel">
     <div class="panel-header">
         <input class="panel-title-input" type="text" @bind="Model.Title" @bind:event="oninput" />
         <span class="panel-type-badge">@Model.PanelType</span>
@@ -92,8 +92,6 @@
 
 @code {
     [Parameter] public PanelModel Model { get; set; } = default!;
-    [Parameter] public int Width { get; set; } = 500;
-    [Parameter] public int Height { get; set; } = 420;
     [Parameter] public EventCallback<PanelModel> OnRemove { get; set; }
 
     private ApexChart<PanelPoint>? _chart;
@@ -101,8 +99,6 @@
     private List<ExpressionModel> _enabledExpressions = new();
     private bool _loading;
     private string? _error;
-    private int _prevWidth;
-    private int _prevHeight;
     private int _chartKey;
     private bool _needsChartRender;
     private bool _chartReady;
@@ -113,11 +109,7 @@
     private CancellationTokenSource? _cts;
 
     protected override void OnInitialized()
-    {
-        _prevWidth = Width;
-        _prevHeight = Height;
-
-        _options = new ApexChartOptions<PanelPoint>
+    {        _options = new ApexChartOptions<PanelPoint>
         {
             Chart = new Chart
             {
@@ -168,15 +160,6 @@
         }
     }
 
-    protected override void OnParametersSet()
-    {
-        if (Width != _prevWidth || Height != _prevHeight)
-        {
-            _prevWidth = Width;
-            _prevHeight = Height;
-            _chartKey++;   // forces ApexChart to fully remount at the new container size
-        }
-    }
 
     // Called by ExpressionEditor: expr == null means refresh all
     private async Task RefreshOneAsync(ExpressionModel? expr)

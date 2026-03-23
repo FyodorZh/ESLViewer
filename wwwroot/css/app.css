@@ -35,8 +35,10 @@ html, body {
 
 .app-main {
     flex: 1;
-    overflow: auto;
+    overflow: hidden;
     padding: 0.8rem;
+    display: flex;
+    flex-direction: column;
 }
 
 /* ── Toolbar (PanelGrid) ──────────────────────────────────── */
@@ -68,8 +70,12 @@ html, body {
 /* ── Grid layout ─────────────────────────────────────────── */
 .panel-grid {
     display: grid;
+    grid-template-columns: 1fr;
     gap: 0.8rem;
-    align-items: start;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+    align-items: stretch;
 }
 
 /* ── Panel ───────────────────────────────────────────────── */
@@ -80,17 +86,17 @@ html, body {
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    /* allow manual resize */
-    resize: both;
-    min-width: 260px;
-    min-height: 320px;
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
 }
 
 .panel-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0.45rem 0.7rem;
+    padding: 0.3rem 0.5rem;
     background: #f7f8fa;
     border-bottom: 1px solid #e2e6ea;
     flex-shrink: 0;
@@ -100,7 +106,7 @@ html, body {
     flex: 1;
     border: none;
     background: transparent;
-    font-size: 0.9rem;
+    font-size: 0.63rem;
     font-weight: 600;
     color: #1a1a2e;
     outline: none;
@@ -240,6 +246,12 @@ html, body {
 .btn-icon:hover { background: rgba(0,0,0,.08); }
 .btn-danger { color: #c0392b; }
 
+/* Shrink icons inside panel headers by 30% */
+.panel-header .btn-icon {
+    font-size: 0.6rem;
+    padding: 0.07rem 0.25rem;
+}
+
 /* ── Blazor error UI ─────────────────────────────────────── */
 #blazor-error-ui {
     background: lightyellow;
@@ -326,7 +338,7 @@ html, body {
 
 /* ── Panel type badge ────────────────────────────────────── */
 .panel-type-badge {
-    font-size: 0.7rem;
+    font-size: 0.5rem;
     background: #e9ecef;
     color: #495057;
     border-radius: 3px;
@@ -347,6 +359,10 @@ html, body {
     display: flex;
     align-items: center;
     justify-content: center;
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
 }
 
 .empty-panel-close {
@@ -378,11 +394,16 @@ html, body {
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
 }
 
 .grid-panel-cells {
     flex: 1;
     overflow: hidden;
+    min-height: 0;
 }
 
 .grid-panel-header-controls {
@@ -393,8 +414,8 @@ html, body {
 }
 
 .grid-btn {
-    padding: 0.2rem 0.5rem;
-    font-size: 0.75rem;
+    padding: 0.14rem 0.35rem;
+    font-size: 0.53rem;
 }
 
 
