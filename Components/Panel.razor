@@ -27,6 +27,7 @@
         @if (_ar.IsEnabled)
         {
             <select class="ar-select panel-ar-select" value="@_ar.Interval" @onchange="OnIntervalChanged">
+                <option value="Second1">1 s</option>
                 <option value="Seconds3">3 s</option>
                 <option value="Seconds5">5 s</option>
                 <option value="Seconds10">10 s</option>
@@ -39,7 +40,10 @@
         <span class="panel-type-badge">@Model.PanelType</span>
         <button class="btn-icon" title="Configure" @onclick="ToggleConfig">&#x2699;</button>
         <button class="btn-icon" title="@(_isFullscreen ? "Exit fullscreen" : "Fullscreen")" @onclick="ToggleFullscreen">@(_isFullscreen ? "⊡" : "⛶")</button>
-        <button class="btn-icon btn-danger" title="Remove panel" @onclick="() => OnRemove.InvokeAsync(Model)">&#x2715;</button>
+        @if (!_isFullscreen)
+        {
+            <button class="btn-icon btn-danger" title="Remove panel" @onclick="() => OnRemove.InvokeAsync(Model)">&#x2715;</button>
+        }
     </div>
 
     <div class="panel-chart-area" id="chart-container-@Model.Id">

@@ -1,6 +1,11 @@
 /* ── Reset & base ────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+:root {
+    --blazor-load-percentage: 0%;
+    --blazor-load-percentage-text: "Loading";
+}
+
 html, body {
     height: 100%;
     font-family: 'Segoe UI', system-ui, sans-serif;
@@ -98,26 +103,28 @@ html, body {
     background: #f7f8fa;
     border-bottom: 1px solid #e2e6ea;
     flex-shrink: 0;
-}}
+}
 
 .panel-title-input {
     field-sizing: content;
     min-width: 2ch;
     max-width: 24ch;
-    border: 1px solid rgba(0, 0, 0, 0.12);
-    background: rgba(0, 0, 0, 0.05);
-    border-radius: 4px;
-    padding: 0 4px;
-    font-size: 0.44rem;
-    line-height: 1;
+    border: none;
+    background: transparent;
+    border-radius: 3px;
+    padding: 0 3px;
+    font-size: 0.72rem;
+    line-height: 1.2;
     font-weight: 600;
     color: #1a1a2e;
     outline: none;
     flex-shrink: 1;
+    height: 1.4em;
 }
 
 .panel-title-input:focus {
-    border-color: #1b6ec2;
+    border: 1px solid #1b6ec2;
+    background: rgba(255,255,255,0.75);
     box-shadow: 0 0 0 2px rgba(27,110,194,.18);
 }
 
@@ -662,3 +669,70 @@ html, body {
     border-radius: 8px;
     box-shadow: 0 8px 40px rgba(0,0,0,.45) !important;
 }
+
+/* ── Table Panel ─────────────────────────────────────────── */
+.table-panel {
+    display: flex;
+    flex-direction: column;
+}
+
+.table-panel-view {
+    flex: 1;
+    overflow: auto;
+    padding: 0.4rem 0.5rem;
+    min-height: 0;
+    cursor: default;
+    display: flex;
+    align-items: flex-start;
+}
+
+.table-panel-view .dashboard-placeholder {
+    margin: auto;
+}
+
+.esl-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.82rem;
+    font-family: 'Courier New', monospace;
+}
+
+.esl-table thead th {
+    position: sticky;
+    top: 0;
+    background: #f0f2f5;
+    color: #343a40;
+    font-weight: 700;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 0.3rem 0.6rem;
+    border-bottom: 2px solid #ced4da;
+    white-space: nowrap;
+    text-align: left;
+}
+
+.esl-table tbody tr:nth-child(even) {
+    background: #f7f8fa;
+}
+
+.esl-table tbody tr:hover {
+    background: rgba(27, 110, 194, 0.06);
+}
+
+.esl-table td {
+    padding: 0.22rem 0.6rem;
+    border-bottom: 1px solid #e9ecef;
+    white-space: nowrap;
+}
+
+.esl-table-name {
+    font-weight: 600;
+    color: #1a1a2e;
+}
+
+.esl-table-value {
+    color: #1b6ec2;
+    text-align: right;
+}
+

@@ -50,6 +50,9 @@ public class PanelModel
         if (snapshot.PanelType == "Dashboard")
             return DashboardPanelModel.FromDashboardSnapshot(snapshot);
 
+        if (snapshot.PanelType == "Table")
+            return TablePanelModel.FromTableSnapshot(snapshot);
+
         var model = new PanelModel
         {
             Title = snapshot.Title,

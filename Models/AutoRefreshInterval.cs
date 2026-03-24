@@ -2,6 +2,7 @@ namespace ESLViewer.Models;
 
 public enum AutoRefreshInterval
 {
+    Second1,
     Seconds3,
     Seconds5,
     Seconds10,

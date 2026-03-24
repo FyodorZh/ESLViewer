@@ -37,6 +37,11 @@
                         🖥 Dashboard
                     </button>
                 </li>
+                <li>
+                    <button class="dropdown-item" @onclick='() => ReplaceWith(PanelType.Table)'>
+                        📊 Table
+                    </button>
+                </li>
                 @if (Model.CanBeClosed)
                 {
                     <li><hr class="dropdown-divider" /></li>

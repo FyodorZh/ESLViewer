@@ -3,7 +3,7 @@
 @inject DragDropService DragDrop
 @implements IAsyncDisposable
 
-<div class="panel dashboard-panel">
+<div class="panel table-panel">
     <div class="panel-header">
         <span class="drag-handle" draggable="true"
               @ondragstart="OnDragStart" @ondragend="OnDragEnd"
@@ -29,7 +29,7 @@
             </select>
             <span class="ar-active-dot" title="Auto-refresh active"></span>
         }
-        <span class="panel-type-badge">Dashboard</span>
+        <span class="panel-type-badge">Table</span>
         <button class="btn-icon" title="Configure" @onclick="ToggleSetup">&#x2699;</button>
         <button class="btn-icon btn-danger" title="Remove panel" @onclick="() => OnRemove.InvokeAsync(Model)">&#x2715;</button>
     </div>
@@ -40,56 +40,67 @@
             <div class="dashboard-setup-row">
                 <label class="dashboard-setup-label">Command</label>
                 <textarea class="dashboard-command-input expr-input"
-                          placeholder="Enter server command..."
+                          placeholder="Enter server command…"
                           @bind="Model.Command"
                           @bind:event="oninput"></textarea>
                 <button class="btn-sm btn-primary" @onclick="() => RefreshAsync()" title="Run command">&#8635;</button>
             </div>
-            <div class="dashboard-setup-row">
-                <label class="dashboard-setup-label">Text</label>
-                <input type="color"
-                       class="expr-color"
-                       value="@Model.TextColor"
-                       title="Text color"
-                       @oninput="e => { Model.TextColor = e.Value?.ToString() ?? Model.TextColor; StateHasChanged(); }" />
-                <label class="dashboard-setup-label ms-2">Background</label>
-                <input type="color"
-                       class="expr-color"
-                       value="@Model.BackgroundColor"
-                       title="Background color"
-                       @oninput="e => { Model.BackgroundColor = e.Value?.ToString() ?? Model.BackgroundColor; StateHasChanged(); }" />
-            </div>
         </div>
     }
 
-    <div class="dashboard-text-view"
-         style="color: @Model.TextColor; background: @Model.BackgroundColor; font-size: @(_fontSize)px;"
-         @ondblclick="ToggleSetup">
-        @if (string.IsNullOrEmpty(_result))
+    <div class="table-panel-view" @ondblclick="ToggleSetup">
+        @if (_tableData.IsEmpty)
         {
             <span class="dashboard-placeholder">Double-click or ⚙ to configure…</span>
         }
         else
         {
-            @_result
+            <table class="esl-table">
+                <thead>
+                    <tr>
+                        @foreach (var col in _tableData.Columns)
+                        {
+                            <th>@col</th>
+                        }
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var row in _tableData.Rows)
+                    {
+                        <tr>
+                            <td class="esl-table-name">@row.Name</td>
+                            @foreach (var val in row.Values)
+                            {
+                                <td class="esl-table-value">@val</td>
+                            }
+                        </tr>
+                    }
+                </tbody>
+            </table>
         }
     </div>
 </div>
 
 @code {
-    [Parameter] public DashboardPanelModel Model { get; set; } = default!;
+    [Parameter] public TablePanelModel Model { get; set; } = default!;
     [Parameter] public EventCallback<PanelModel> OnRemove { get; set; }
     [Parameter] public EventCallback<PanelModel> OnReplaceWithEmpty { get; set; }
 
-    private string _result = string.Empty;
+    // For test purposes: pre-populate with sample data
+    private const string TestData =
+        "[(\"name\", \"bid\", \"ask\"), (\"BTC\", 70000.3, 72000.4), (\"ETH\", 3040, 3400), (\"SOL\", 80, 90)]";
+
+    private TableData _tableData = new();
     private bool _showSetup;
 
-    // Auto-refresh controller (#1)
+    // Auto-refresh controller
     private readonly AutoRefreshController _ar = new();
 
     protected override void OnInitialized()
     {
         _ar.Initialize(Model.AutoRefreshEnabled, Model.AutoRefreshInterval);
+        // Pre-populate with test data so the table is visible immediately
+        _tableData = TableDataParser.Parse(TestData);
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -103,26 +114,14 @@
         }
     }
 
-    // Dynamic font size: more text → smaller font, clamped between 9px and 48px.
-    private int _fontSize
-    {
-        get
-        {
-            if (string.IsNullOrEmpty(_result)) return 24;
-            var lines = _result.Split('\n').Length;
-            var maxLen = _result.Split('\n').Max(l => l.Length);
-            var byLines = 300 / (lines + 2);
-            var byWidth = 600 / (maxLen + 4);
-            return Math.Max(9, Math.Min(48, Math.Min(byLines, byWidth)));
-        }
-    }
-
     private void ToggleSetup() => _showSetup = !_showSetup;
 
     public async Task RefreshAsync(CancellationToken token = default)
     {
         if (string.IsNullOrWhiteSpace(Model.Command)) return;
-        _result = await MathServer.EvaluateRawAsync(Model.Command);
+        var raw = await MathServer.EvaluateRawAsync(Model.Command);
+        if (!string.IsNullOrWhiteSpace(raw))
+            _tableData = TableDataParser.Parse(raw);
         Model.AutoRefreshEnabled = _ar.IsEnabled;
         Model.AutoRefreshInterval = _ar.Interval;
         StateHasChanged();
@@ -169,3 +168,4 @@
         await _ar.DisposeAsync();
     }
 }
+

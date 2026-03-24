@@ -58,4 +58,10 @@ public class PanelSnapshot
     public string? DashboardBackgroundColor { get; set; }
     public bool DashboardAutoRefreshEnabled { get; set; }
     public string? DashboardAutoRefreshInterval { get; set; }
+
+    // ── Table-panel specific ─────────────────────────────────────────────────
+
+    public string? TableCommand { get; set; }
+    public bool TableAutoRefreshEnabled { get; set; }
+    public string? TableAutoRefreshInterval { get; set; }
 }

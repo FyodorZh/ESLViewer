@@ -62,6 +62,7 @@ public sealed class AutoRefreshController : IAsyncDisposable
 
     public TimeSpan GetTimeSpan() => Interval switch
     {
+        AutoRefreshInterval.Second1   => TimeSpan.FromSeconds(1),
         AutoRefreshInterval.Seconds3  => TimeSpan.FromSeconds(3),
         AutoRefreshInterval.Seconds5  => TimeSpan.FromSeconds(5),
         AutoRefreshInterval.Seconds10 => TimeSpan.FromSeconds(10),

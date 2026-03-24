@@ -8,11 +8,11 @@
     <span class="app-title">ESL Dashboard</span>
 
     <div class="d-inline-flex gap-1 align-items-center flex-wrap">
+        <button class="btn-sm btn-outline-ghost" title="Open preferences" @onclick="() => _showSettings = true" style="margin-right:0.6rem">⚙ Settings</button>
         <button class="btn-sm btn-outline-ghost" title="Save state to cookie" @onclick="SaveToCookieAsync">🍪 Save</button>
         <button class="btn-sm btn-outline-ghost" title="Restore state from cookie" @onclick="LoadFromCookieAsync">🍪 Load</button>
         <button class="btn-sm btn-outline-ghost" title="Copy state to clipboard" @onclick="CopyToClipboardAsync">📋 Copy</button>
         <button class="btn-sm btn-outline-ghost" title="Paste state from clipboard" @onclick="PasteFromClipboardAsync">📋 Paste</button>
-        <button class="btn-sm btn-outline-ghost" title="Open preferences" @onclick="() => _showSettings = true" style="margin-right:0.6rem">⚙ Settings</button>
         <button class="btn-sm btn-outline-ghost" title="Download state as JSON" @onclick="DownloadJsonAsync">⬇ Save</button>
         <label class="btn-sm btn-outline-ghost" title="Load state from JSON file" style="cursor:pointer">
             ⬆ Open
@@ -51,6 +51,13 @@
                             OnReplaceWithEmpty="ReplacePanelWithEmpty"
                             @ref="_dashboardRefs[dashModel.Id]" />
         }
+        else if (current is TablePanelModel tableModel)
+        {
+            <TablePanel Model="tableModel"
+                        OnRemove="RemovePanel"
+                        OnReplaceWithEmpty="ReplacePanelWithEmpty"
+                        @ref="_tableRefs[tableModel.Id]" />
+        }
         else if (current.PanelType == PanelType.Empty)
         {
             <EmptyPanel Model="current"
@@ -73,6 +80,7 @@
     private Dictionary<Guid, Panel?> _panelRefs = new();
     private Dictionary<Guid, GridPanel?> _gridPanelRefs = new();
     private Dictionary<Guid, DashboardPanel?> _dashboardRefs = new();
+    private Dictionary<Guid, TablePanel?> _tableRefs = new();
 
     private string? _statusMessage;
     private bool _statusIsError;
@@ -108,6 +116,7 @@
         {
             PanelType.Grid      => new GridPanelModel { Title = $"Grid {_panels.Count + 1}" },
             PanelType.Dashboard => new DashboardPanelModel { Title = $"Dashboard {_panels.Count + 1}" },
+            PanelType.Table     => new TablePanelModel { Title = $"Table {_panels.Count + 1}" },
             _                   => new PanelModel { Title = $"Panel {_panels.Count + 1}", PanelType = type }
         };
         _panels.Add(panel);
@@ -115,6 +124,8 @@
             _gridPanelRefs[panel.Id] = null;
         else if (panel is DashboardPanelModel)
             _dashboardRefs[panel.Id] = null;
+        else if (panel is TablePanelModel)
+            _tableRefs[panel.Id] = null;
         else
             _panelRefs[panel.Id] = null;
     }
@@ -125,6 +136,7 @@
         _panelRefs.Remove(panel.Id);
         _gridPanelRefs.Remove(panel.Id);
         _dashboardRefs.Remove(panel.Id);
+        _tableRefs.Remove(panel.Id);
     }
 
     /// <summary>Replaces a top-level panel with an empty slot (used as drag source callback).</summary>
@@ -135,6 +147,7 @@
         _panelRefs.Remove(panel.Id);
         _gridPanelRefs.Remove(panel.Id);
         _dashboardRefs.Remove(panel.Id);
+        _tableRefs.Remove(panel.Id);
         var empty = new PanelModel { PanelType = PanelType.Empty };
         _panels[idx] = empty;
         _panelRefs[empty.Id] = null;
@@ -149,9 +162,11 @@
         _panelRefs.Remove(emptyPanel.Id);
         _gridPanelRefs.Remove(emptyPanel.Id);
         _dashboardRefs.Remove(emptyPanel.Id);
+        _tableRefs.Remove(emptyPanel.Id);
         _panels[idx] = droppedPanel;
         if (droppedPanel is GridPanelModel) _gridPanelRefs[droppedPanel.Id] = null;
         else if (droppedPanel is DashboardPanelModel) _dashboardRefs[droppedPanel.Id] = null;
+        else if (droppedPanel is TablePanelModel) _tableRefs[droppedPanel.Id] = null;
         else _panelRefs[droppedPanel.Id] = null;
         StateHasChanged();
     }
@@ -164,11 +179,13 @@
         _panelRefs.Remove(oldPanel.Id);
         _gridPanelRefs.Remove(oldPanel.Id);
         _dashboardRefs.Remove(oldPanel.Id);
+        _tableRefs.Remove(oldPanel.Id);
 
         PanelModel newPanel = newType switch
         {
             PanelType.Grid      => new GridPanelModel { Title = $"Grid {_panels.Count}" },
             PanelType.Dashboard => new DashboardPanelModel { Title = $"Dashboard {_panels.Count}" },
+            PanelType.Table     => new TablePanelModel { Title = $"Table {_panels.Count}" },
             _                   => new PanelModel { Title = $"Panel {_panels.Count}", PanelType = newType }
         };
 
@@ -177,6 +194,8 @@
             _gridPanelRefs[newPanel.Id] = null;
         else if (newPanel is DashboardPanelModel)
             _dashboardRefs[newPanel.Id] = null;
+        else if (newPanel is TablePanelModel)
+            _tableRefs[newPanel.Id] = null;
         else
             _panelRefs[newPanel.Id] = null;
     }
@@ -190,6 +209,8 @@
                 _gridPanelRefs.TryAdd(p.Id, null);
             else if (p is DashboardPanelModel)
                 _dashboardRefs.TryAdd(p.Id, null);
+            else if (p is TablePanelModel)
+                _tableRefs.TryAdd(p.Id, null);
             else
                 _panelRefs.TryAdd(p.Id, null);
         }
@@ -206,6 +227,8 @@
                 panels.Add(await gridRef.CaptureSnapshotAsync());
             else if (panel is DashboardPanelModel && _dashboardRefs.TryGetValue(panel.Id, out var dashRef) && dashRef is not null)
                 panels.Add(dashRef.CaptureSnapshot());
+            else if (panel is TablePanelModel && _tableRefs.TryGetValue(panel.Id, out var tableRef) && tableRef is not null)
+                panels.Add(tableRef.CaptureSnapshot());
             else if (_panelRefs.TryGetValue(panel.Id, out var panelRef) && panelRef is not null)
                 panels.Add(await panelRef.CaptureSnapshotAsync());
             else
@@ -257,6 +280,13 @@
             {
                 if (_dashboardRefs.TryGetValue(panel.Id, out var dashRef) && dashRef is not null)
                     await dashRef.RefreshAsync();
+                continue;
+            }
+
+            if (panel is TablePanelModel)
+            {
+                if (_tableRefs.TryGetValue(panel.Id, out var tableRef) && tableRef is not null)
+                    await tableRef.RefreshAsync();
                 continue;
             }
 

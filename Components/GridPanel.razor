@@ -52,6 +52,13 @@
                                 OnReplaceWithEmpty="ReplaceCellWithEmpty"
                                 @ref="_dashboardCellRefs[dashCell.Id]" />
             }
+            else if (currentCell is TablePanelModel tableCell)
+            {
+                <TablePanel Model="tableCell"
+                            OnRemove="m => ReplaceCellWithEmpty(m)"
+                            OnReplaceWithEmpty="ReplaceCellWithEmpty"
+                            @ref="_tableCellRefs[tableCell.Id]" />
+            }
             else if (currentCell.PanelType == PanelType.Empty)
             {
                 <EmptyPanel Model="currentCell"
@@ -84,6 +91,7 @@
     private Dictionary<Guid, Panel?> _cellRefs = new();
     private Dictionary<Guid, GridPanel?> _gridCellRefs = new();
     private Dictionary<Guid, DashboardPanel?> _dashboardCellRefs = new();
+    private Dictionary<Guid, TablePanel?> _tableCellRefs = new();
 
     private DotNetObjectReference<GridPanel>? _dotNetRef;
 
@@ -114,6 +122,7 @@
             {
                 if (cell is GridPanelModel g) _gridCellRefs.TryAdd(g.Id, null);
                 else if (cell is DashboardPanelModel d) _dashboardCellRefs.TryAdd(d.Id, null);
+                else if (cell is TablePanelModel t) _tableCellRefs.TryAdd(t.Id, null);
                 else _cellRefs.TryAdd(cell.Id, null);
             }
         }
@@ -199,12 +208,14 @@
         {
             PanelType.Grid      => new GridPanelModel(),
             PanelType.Dashboard => new DashboardPanelModel(),
+            PanelType.Table     => new TablePanelModel(),
             _                   => new PanelModel { Title = "Panel", PanelType = type }
         };
 
         Model.Cells[idx] = newCell;
         if (newCell is GridPanelModel ng) _gridCellRefs[ng.Id] = null;
         else if (newCell is DashboardPanelModel nd) _dashboardCellRefs[nd.Id] = null;
+        else if (newCell is TablePanelModel nt) _tableCellRefs[nt.Id] = null;
         else _cellRefs[newCell.Id] = null;
         StateHasChanged();
     }
@@ -218,6 +229,7 @@
         _cellRefs.Remove(model.Id);
         _gridCellRefs.Remove(model.Id);
         _dashboardCellRefs.Remove(model.Id);
+        _tableCellRefs.Remove(model.Id);
         var empty = new PanelModel { PanelType = PanelType.Empty, CanBeClosed = false };
         Model.Cells[idx] = empty;
         _cellRefs[empty.Id] = null;
@@ -233,10 +245,12 @@
         _cellRefs.Remove(emptyCell.Id);
         _gridCellRefs.Remove(emptyCell.Id);
         _dashboardCellRefs.Remove(emptyCell.Id);
+        _tableCellRefs.Remove(emptyCell.Id);
 
         Model.Cells[idx] = droppedPanel;
         if (droppedPanel is GridPanelModel dg) _gridCellRefs[dg.Id] = null;
         else if (droppedPanel is DashboardPanelModel dd) _dashboardCellRefs[dd.Id] = null;
+        else if (droppedPanel is TablePanelModel dt) _tableCellRefs[dt.Id] = null;
         else _cellRefs[droppedPanel.Id] = null;
         StateHasChanged();
     }
@@ -250,6 +264,8 @@
             if (!ids.Contains(key)) _gridCellRefs.Remove(key);
         foreach (var key in _dashboardCellRefs.Keys.ToList())
             if (!ids.Contains(key)) _dashboardCellRefs.Remove(key);
+        foreach (var key in _tableCellRefs.Keys.ToList())
+            if (!ids.Contains(key)) _tableCellRefs.Remove(key);
     }
 
     // ── Drag ──────────────────────────────────────────────────────────────────
@@ -275,6 +291,8 @@
             if (gridRef is not null) await gridRef.RefreshAllAsync();
         foreach (var (_, dashRef) in _dashboardCellRefs)
             if (dashRef is not null) await dashRef.RefreshAsync();
+        foreach (var (_, tableRef) in _tableCellRefs)
+            if (tableRef is not null) await tableRef.RefreshAsync();
     }
 
     /// <summary>Capture a full snapshot including nested panels' axis ranges.</summary>
@@ -288,6 +306,8 @@
                 snapshot.GridCells[i] = await gridRef.CaptureSnapshotAsync();
             else if (cell is DashboardPanelModel && _dashboardCellRefs.TryGetValue(cell.Id, out var dashRef) && dashRef is not null)
                 snapshot.GridCells[i] = dashRef.CaptureSnapshot();
+            else if (cell is TablePanelModel && _tableCellRefs.TryGetValue(cell.Id, out var tableRef) && tableRef is not null)
+                snapshot.GridCells[i] = tableRef.CaptureSnapshot();
             else if (cell.PanelType != PanelType.Empty && _cellRefs.TryGetValue(cell.Id, out var panelRef) && panelRef is not null)
                 snapshot.GridCells[i] = await panelRef.CaptureSnapshotAsync();
         }
