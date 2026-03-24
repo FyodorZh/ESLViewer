@@ -16,13 +16,13 @@
         <span class="panel-header-spacer"></span>
         <label class="panel-ar-label">
             <input type="checkbox"
-                   checked="@_autoRefreshEnabled"
+                   checked="@_ar.IsEnabled"
                    @onchange="OnAutoRefreshToggled" />
             Auto-refresh
         </label>
-        @if (_autoRefreshEnabled)
+        @if (_ar.IsEnabled)
         {
-            <select class="ar-select panel-ar-select" value="@_autoRefreshInterval" @onchange="OnIntervalChanged">
+            <select class="ar-select panel-ar-select" value="@_ar.Interval" @onchange="OnIntervalChanged">
                 <option value="Seconds3">3 s</option>
                 <option value="Seconds5">5 s</option>
                 <option value="Seconds10">10 s</option>
@@ -40,10 +40,6 @@
         @if (_loading)
         {
             <div class="panel-loading">Loading&#8230;</div>
-        }
-        @if (_error is not null)
-        {
-            <div class="panel-error">@_error</div>
         }
 
         <ApexChart TItem="PanelPoint"
@@ -101,18 +97,16 @@
     private ApexChartOptions<PanelPoint> _options = new();
     private List<ExpressionModel> _enabledExpressions = new();
     private bool _loading;
-    private string? _error;
     private int _chartKey;
     private bool _needsChartRender;
     private bool _chartReady;
 
-    // Auto-refresh
-    private bool _autoRefreshEnabled;
-    private AutoRefreshInterval _autoRefreshInterval = AutoRefreshInterval.Seconds5;
-    private CancellationTokenSource? _cts;
+    // Auto-refresh controller (#1)
+    private readonly AutoRefreshController _ar = new();
 
     protected override void OnInitialized()
-    {        _options = new ApexChartOptions<PanelPoint>
+    {
+        _options = new ApexChartOptions<PanelPoint>
         {
             Chart = new Chart
             {
@@ -149,9 +143,6 @@
     {
         if (firstRender)
         {
-            // Set ready before RefreshAsync: ApexCharts JS init is done by the
-            // time firstRender fires, so the immediate RenderAsync path in
-            // UpdateChart can safely be used during the initial data load.
             _chartReady = true;
             await RefreshAsync();
         }
@@ -163,7 +154,6 @@
         }
     }
 
-
     // Called by ExpressionEditor: expr == null means refresh all
     private async Task RefreshOneAsync(ExpressionModel? expr)
     {
@@ -174,53 +164,31 @@
     }
 
     // Refresh a single expression only
-    private async Task RefreshAsync(ExpressionModel expr)
+    private async Task RefreshAsync(ExpressionModel expr, CancellationToken token = default)
     {
         _loading = true;
-        _error = null;
         StateHasChanged();
 
-        try
-        {
-            if (!string.IsNullOrWhiteSpace(expr.Expression))
-                expr.Points = await MathServer.EvaluateAsync(expr.Expression, Model.PanelType);
-        }
-        catch (Exception ex)
-        {
-            _error = $"Error: {ex.Message}";
-        }
-        finally
-        {
-            _loading = false;
-        }
+        if (!string.IsNullOrWhiteSpace(expr.Expression))
+            expr.Points = await MathServer.EvaluateAsync(expr.Expression, Model.PanelType, token);
 
+        _loading = false;
         await UpdateChart();
     }
 
     // Refresh all expressions
-    public async Task RefreshAsync()
+    public async Task RefreshAsync(CancellationToken token = default)
     {
         _loading = true;
-        _error = null;
         StateHasChanged();
 
-        try
+        foreach (var expr in Model.Expressions)
         {
-            foreach (var expr in Model.Expressions)
-            {
-                if (!string.IsNullOrWhiteSpace(expr.Expression))
-                    expr.Points = await MathServer.EvaluateAsync(expr.Expression, Model.PanelType);
-            }
-        }
-        catch (Exception ex)
-        {
-            _error = $"Error: {ex.Message}";
-        }
-        finally
-        {
-            _loading = false;
+            if (!string.IsNullOrWhiteSpace(expr.Expression))
+                expr.Points = await MathServer.EvaluateAsync(expr.Expression, Model.PanelType, token);
         }
 
+        _loading = false;
         await UpdateChart();
     }
 
@@ -230,9 +198,6 @@
             .Where(e => e.IsEnabled && e.Points.Count > 0)
             .ToList();
 
-        // Calling RenderAsync on ApexCharts with zero series causes a JS crash
-        // ("Cannot read properties of null (reading 'forEach')").
-        // Force a full remount via _chartKey++ to clear the chart cleanly instead.
         if (_enabledExpressions.Count == 0)
         {
             _needsChartRender = false;
@@ -244,10 +209,6 @@
         _needsChartRender = true;
         StateHasChanged();
 
-        // Immediate call handles the hide/show case (series must be updated
-        // before / during the Blazor re-render cycle).
-        // Clear the flag after success so OnAfterRenderAsync skips the
-        // redundant second RenderAsync call.
         if (_chart is not null && _chartReady)
         {
             await _chart.RenderAsync();
@@ -258,68 +219,16 @@
     // ── Auto-refresh ──────────────────────────────────────────────────────────
 
     private void OnAutoRefreshToggled(ChangeEventArgs e)
-    {
-        _autoRefreshEnabled = (bool)(e.Value ?? false);
-        if (_autoRefreshEnabled)
-            StartAutoRefreshLoop();
-        else
-            StopAutoRefresh();
-    }
+        => _ar.Toggle((bool)(e.Value ?? false), token => RefreshAsync(token));
 
     private void OnIntervalChanged(ChangeEventArgs e)
     {
         if (Enum.TryParse<AutoRefreshInterval>(e.Value?.ToString(), out var interval))
-            _autoRefreshInterval = interval;
-
-        if (_autoRefreshEnabled)
-        {
-            StopAutoRefresh();
-            StartAutoRefreshLoop();
-        }
-    }
-
-    private TimeSpan GetRefreshTimeSpan() => _autoRefreshInterval switch
-    {
-        AutoRefreshInterval.Seconds3  => TimeSpan.FromSeconds(3),
-        AutoRefreshInterval.Seconds5  => TimeSpan.FromSeconds(5),
-        AutoRefreshInterval.Seconds10 => TimeSpan.FromSeconds(10),
-        AutoRefreshInterval.Minute1   => TimeSpan.FromMinutes(1),
-        AutoRefreshInterval.Minute10  => TimeSpan.FromMinutes(10),
-        AutoRefreshInterval.Hour1     => TimeSpan.FromHours(1),
-        _                             => TimeSpan.FromSeconds(5)
-    };
-
-    private void StartAutoRefreshLoop()
-    {
-        StopAutoRefresh();
-        _cts = new CancellationTokenSource();
-        _ = AutoRefreshLoopAsync(_cts.Token);
-    }
-
-    private async Task AutoRefreshLoopAsync(CancellationToken token)
-    {
-        using var timer = new PeriodicTimer(GetRefreshTimeSpan());
-        try
-        {
-            while (await timer.WaitForNextTickAsync(token))
-                await RefreshAsync();
-        }
-        catch (OperationCanceledException) { }
-    }
-
-    private void StopAutoRefresh()
-    {
-        _cts?.Cancel();
-        _cts?.Dispose();
-        _cts = null;
+            _ar.ChangeInterval(interval);
     }
 
     // ── Snapshot / ViewRect interop ───────────────────────────────────────────
 
-    /// <summary>
-    /// Reads the current chart zoom/pan range via JS interop.
-    /// Returns a ViewRect whose fields are null when the axis is at auto-scale.
-    /// </summary>
     public async Task<ViewRect> GetViewRect()
     {
         try
@@ -334,10 +243,6 @@
         }
     }
 
-    /// <summary>
-    /// Restores the chart zoom/pan range via JS interop.
-    /// Null fields in <paramref name="rect"/> leave the corresponding axis at auto-scale.
-    /// </summary>
     public async Task SetViewRect(ViewRect rect)
     {
         try
@@ -348,13 +253,9 @@
                 rect.XMin, rect.XMax,
                 rect.YMin, rect.YMax);
         }
-        catch { /* chart may not be ready — silently ignore */ }
+        catch { }
     }
 
-    /// <summary>
-    /// Captures the full persistable state for this panel, including the
-    /// current chart axis range obtained via JS interop.
-    /// </summary>
     public async Task<PanelSnapshot> CaptureSnapshotAsync()
     {
         var snapshot = Model.ToSnapshot();
@@ -365,20 +266,15 @@
     // ── Drag ──────────────────────────────────────────────────────────────────
 
     private void OnDragStart()
-    {
-        DragDrop.StartDrag(Model, () => OnReplaceWithEmpty.InvokeAsync(Model));
-    }
+        => DragDrop.StartDrag(Model, () => OnReplaceWithEmpty.InvokeAsync(Model));
 
     private void OnDragEnd()
     {
-        // Cancel if the drop was not completed (dragged outside any valid target)
         if (DragDrop.IsDragging) DragDrop.Cancel();
     }
 
-    public ValueTask DisposeAsync()
+    public async ValueTask DisposeAsync()
     {
-        StopAutoRefresh();
-        return ValueTask.CompletedTask;
+        await _ar.DisposeAsync();
     }
 }
-

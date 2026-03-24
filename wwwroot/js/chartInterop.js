@@ -42,6 +42,8 @@ window.ESLViewer.setChartAxisRange = function (chartElementId, xMin, xMax, yMin,
 window.ESLViewer.setCookie = function (name, value, days) {
     try {
         localStorage.setItem(name, value);
+        // Keep _stateKey in sync so the beforeunload handler always uses the right key (#11)
+        window.ESLViewer._stateKey = name;
         // Also update the unload cache so beforeunload can save synchronously
         window.ESLViewer._stateCache = value;
     } catch (e) { /* storage full or private mode */ }
@@ -262,7 +264,31 @@ window.ESLViewer._startResize = function (e) {
 window.ESLViewer.cleanupGridResizers = function (containerId) {
     const el = document.getElementById(containerId);
     if (!el) return;
-    el.querySelectorAll('.esl-resizer').forEach(function (r) { r.remove(); });
+    // Release pointer capture if a resize drag is in progress (#15)
+    el.querySelectorAll('.esl-resizer').forEach(function (r) {
+        try { r.releasePointerCapture && r.releasePointerCapture(0); } catch (e) { }
+        r.remove();
+    });
     if (el._eslResizeObs) { el._eslResizeObs.disconnect(); el._eslResizeObs = null; }
     el._eslGrid = null;
 };
+
+// ─── Bootstrap dropdown with fixed positioning (escapes overflow:hidden) ──────
+
+/**
+ * Re-initialises a Bootstrap dropdown toggle to use position:fixed via Popper.js,
+ * so the dropdown menu is never clipped by an ancestor with overflow:hidden.
+ * @param {string} elementId  id of the dropdown toggle button
+ */
+window.ESLViewer.initFixedDropdown = function (elementId) {
+    const el = document.getElementById(elementId);
+    if (!el || !window.bootstrap) return;
+    const existing = bootstrap.Dropdown.getInstance(el);
+    if (existing) existing.dispose();
+    new bootstrap.Dropdown(el, {
+        popperConfig: function (defaultConfig) {
+            return Object.assign({}, defaultConfig, { strategy: 'fixed' });
+        }
+    });
+};
+

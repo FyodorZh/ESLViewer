@@ -17,12 +17,14 @@ public class MathServerService
         _http = http;
     }
 
-    public async Task<List<PanelPoint>> EvaluateAsync(string expression, PanelType panelType)
+    /// <param name="token">Optional token to cancel the HTTP request (e.g. when auto-refresh is stopped).</param>
+    public async Task<List<PanelPoint>> EvaluateAsync(string expression, PanelType panelType,
+        CancellationToken token = default)
     {
         var encoded = Uri.EscapeDataString(expression);
         try
         {
-            var response = await _http.GetStringAsync($"invoke?script={encoded}");
+            var response = await _http.GetStringAsync($"invoke?script={encoded}", token);
             return _parsers[panelType].Parse(response);
         }
         catch

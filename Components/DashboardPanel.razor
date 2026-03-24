@@ -1,6 +1,4 @@
-    @using ESLViewer.Models
-@using ESLViewer.Models.State
-@using ESLViewer.Services
+@using ESLViewer.Models
 @inject MathServerService MathServer
 @inject DragDropService DragDrop
 @implements IAsyncDisposable
@@ -12,11 +10,12 @@
               title="Drag to move panel">⠿</span>
         <input class="panel-title-input" type="text" @bind="Model.Title" @bind:event="oninput" />
         <span class="panel-header-spacer"></span>
-        @if (_autoRefreshEnabled)
+        @if (_ar.IsEnabled)
         {
             <span class="ar-active-dot" title="Auto-refresh active"></span>
         }
         <span class="panel-type-badge">Dashboard</span>
+        <button class="btn-icon" title="Configure" @onclick="ToggleSetup">&#x2699;</button>
         <button class="btn-icon btn-danger" title="Remove panel" @onclick="() => OnRemove.InvokeAsync(Model)">&#x2715;</button>
     </div>
 
@@ -29,7 +28,7 @@
                           placeholder="Enter server command..."
                           @bind="Model.Command"
                           @bind:event="oninput"></textarea>
-                <button class="btn-sm btn-primary" @onclick="RefreshAsync" title="Run command">&#8635;</button>
+                <button class="btn-sm btn-primary" @onclick="() => RefreshAsync()" title="Run command">&#8635;</button>
             </div>
             <div class="dashboard-setup-row">
                 <label class="dashboard-setup-label">Text</label>
@@ -46,13 +45,13 @@
                        @oninput="e => { Model.BackgroundColor = e.Value?.ToString() ?? Model.BackgroundColor; StateHasChanged(); }" />
                 <label class="ar-label ms-2">
                     <input type="checkbox"
-                           checked="@_autoRefreshEnabled"
+                           checked="@_ar.IsEnabled"
                            @onchange="OnAutoRefreshToggled" />
                     Auto-refresh
                 </label>
-                @if (_autoRefreshEnabled)
+                @if (_ar.IsEnabled)
                 {
-                    <select class="ar-select" value="@_autoRefreshInterval" @onchange="OnIntervalChanged">
+                    <select class="ar-select" value="@_ar.Interval" @onchange="OnIntervalChanged">
                         <option value="Seconds3">3 s</option>
                         <option value="Seconds5">5 s</option>
                         <option value="Seconds10">10 s</option>
@@ -70,7 +69,7 @@
          @ondblclick="ToggleSetup">
         @if (string.IsNullOrEmpty(_result))
         {
-            <span class="dashboard-placeholder">Double-click to configure…</span>
+            <span class="dashboard-placeholder">Double-click or ⚙ to configure…</span>
         }
         else
         {
@@ -87,15 +86,12 @@
     private string _result = string.Empty;
     private bool _showSetup;
 
-    // Auto-refresh
-    private bool _autoRefreshEnabled;
-    private AutoRefreshInterval _autoRefreshInterval = AutoRefreshInterval.Seconds5;
-    private CancellationTokenSource? _cts;
+    // Auto-refresh controller (#1)
+    private readonly AutoRefreshController _ar = new();
 
     protected override void OnInitialized()
     {
-        _autoRefreshEnabled = Model.AutoRefreshEnabled;
-        _autoRefreshInterval = Model.AutoRefreshInterval;
+        _ar.Initialize(Model.AutoRefreshEnabled, Model.AutoRefreshInterval);
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -104,8 +100,8 @@
         {
             if (!string.IsNullOrWhiteSpace(Model.Command))
                 await RefreshAsync();
-            if (_autoRefreshEnabled)
-                StartAutoRefreshLoop();
+            if (_ar.IsEnabled)
+                _ar.Start(_ => RefreshAsync());
         }
     }
 
@@ -125,12 +121,12 @@
 
     private void ToggleSetup() => _showSetup = !_showSetup;
 
-    public async Task RefreshAsync()
+    public async Task RefreshAsync(CancellationToken token = default)
     {
         if (string.IsNullOrWhiteSpace(Model.Command)) return;
         _result = await MathServer.EvaluateRawAsync(Model.Command);
-        Model.AutoRefreshEnabled = _autoRefreshEnabled;
-        Model.AutoRefreshInterval = _autoRefreshInterval;
+        Model.AutoRefreshEnabled = _ar.IsEnabled;
+        Model.AutoRefreshInterval = _ar.Interval;
         StateHasChanged();
     }
 
@@ -138,70 +134,23 @@
 
     private void OnAutoRefreshToggled(ChangeEventArgs e)
     {
-        _autoRefreshEnabled = (bool)(e.Value ?? false);
-        Model.AutoRefreshEnabled = _autoRefreshEnabled;
-        if (_autoRefreshEnabled)
-            StartAutoRefreshLoop();
-        else
-            StopAutoRefresh();
+        _ar.Toggle((bool)(e.Value ?? false), _ => RefreshAsync());
+        Model.AutoRefreshEnabled = _ar.IsEnabled;
     }
 
     private void OnIntervalChanged(ChangeEventArgs e)
     {
         if (Enum.TryParse<AutoRefreshInterval>(e.Value?.ToString(), out var interval))
         {
-            _autoRefreshInterval = interval;
-            Model.AutoRefreshInterval = interval;
+            _ar.ChangeInterval(interval);
+            Model.AutoRefreshInterval = _ar.Interval;
         }
-        if (_autoRefreshEnabled)
-        {
-            StopAutoRefresh();
-            StartAutoRefreshLoop();
-        }
-    }
-
-    private TimeSpan GetRefreshTimeSpan() => _autoRefreshInterval switch
-    {
-        AutoRefreshInterval.Seconds3  => TimeSpan.FromSeconds(3),
-        AutoRefreshInterval.Seconds5  => TimeSpan.FromSeconds(5),
-        AutoRefreshInterval.Seconds10 => TimeSpan.FromSeconds(10),
-        AutoRefreshInterval.Minute1   => TimeSpan.FromMinutes(1),
-        AutoRefreshInterval.Minute10  => TimeSpan.FromMinutes(10),
-        AutoRefreshInterval.Hour1     => TimeSpan.FromHours(1),
-        _                             => TimeSpan.FromSeconds(5)
-    };
-
-    private void StartAutoRefreshLoop()
-    {
-        StopAutoRefresh();
-        _cts = new CancellationTokenSource();
-        _ = AutoRefreshLoopAsync(_cts.Token);
-    }
-
-    private async Task AutoRefreshLoopAsync(CancellationToken token)
-    {
-        using var timer = new PeriodicTimer(GetRefreshTimeSpan());
-        try
-        {
-            while (await timer.WaitForNextTickAsync(token))
-                await RefreshAsync();
-        }
-        catch (OperationCanceledException) { }
-    }
-
-    private void StopAutoRefresh()
-    {
-        _cts?.Cancel();
-        _cts?.Dispose();
-        _cts = null;
     }
 
     // ── Drag ──────────────────────────────────────────────────────────────────
 
     private void OnDragStart()
-    {
-        DragDrop.StartDrag(Model, () => OnReplaceWithEmpty.InvokeAsync(Model));
-    }
+        => DragDrop.StartDrag(Model, () => OnReplaceWithEmpty.InvokeAsync(Model));
 
     private void OnDragEnd()
     {
@@ -212,15 +161,13 @@
 
     public PanelSnapshot CaptureSnapshot()
     {
-        Model.AutoRefreshEnabled = _autoRefreshEnabled;
-        Model.AutoRefreshInterval = _autoRefreshInterval;
+        Model.AutoRefreshEnabled = _ar.IsEnabled;
+        Model.AutoRefreshInterval = _ar.Interval;
         return Model.ToSnapshot();
     }
 
-    public ValueTask DisposeAsync()
+    public async ValueTask DisposeAsync()
     {
-        StopAutoRefresh();
-        return ValueTask.CompletedTask;
+        await _ar.DisposeAsync();
     }
 }
-

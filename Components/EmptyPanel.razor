@@ -1,22 +1,18 @@
 @using ESLViewer.Models
 @using ESLViewer.Services
 @inject DragDropService DragDrop
+@inject IJSRuntime JS
 
-<div class="panel empty-panel @(_dragOver ? "drag-over" : "")"
+<div class="empty-panel @(_dragOver ? "drag-over" : "")"
+     @ondragenter="OnDragEnter"
      @ondragover="OnDragOver" @ondragover:preventDefault="true"
      @ondragleave="OnDragLeave"
      @ondrop="OnDropAsync">
-    @if (Model.CanBeClosed)
-    {
-        <button class="btn-icon btn-danger empty-panel-close" title="Remove panel"
-                @onclick="() => OnRemove.InvokeAsync(Model)">&#x2715;</button>
-    }
 
     <div class="empty-panel-content">
-        <span class="empty-panel-label">Empty</span>
-
         <div class="dropdown">
-            <button class="btn btn-primary btn-sm dropdown-toggle"
+            <button id="ep-btn-@_id"
+                    class="btn btn-primary btn-sm dropdown-toggle"
                     data-bs-toggle="dropdown" aria-expanded="false">
                 Add New
             </button>
@@ -41,6 +37,15 @@
                         🖥 Dashboard
                     </button>
                 </li>
+                @if (Model.CanBeClosed)
+                {
+                    <li><hr class="dropdown-divider" /></li>
+                    <li>
+                        <button class="dropdown-item text-danger" @onclick="() => OnRemove.InvokeAsync(Model)">
+                            ✕ Remove
+                        </button>
+                    </li>
+                }
             </ul>
         </div>
     </div>
@@ -54,8 +59,28 @@
     [Parameter] public bool DisableDrop { get; set; }
 
     private bool _dragOver;
+    private readonly string _id = Guid.NewGuid().ToString("N")[..8];
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // Re-initialize the Bootstrap dropdown with position:fixed so it
+            // isn't clipped by ancestor overflow:hidden containers (#dropdown-clip-fix)
+            try { await JS.InvokeVoidAsync("ESLViewer.initFixedDropdown", $"ep-btn-{_id}"); }
+            catch { /* JS not ready — Bootstrap auto-init will handle it */ }
+        }
+    }
 
     private Task ReplaceWith(PanelType type) => OnReplace.InvokeAsync(type);
+
+    // Using ondragenter to re-set _dragOver when entering a child element,
+    // preventing false dragleave flicker (#19)
+    private void OnDragEnter(DragEventArgs _)
+    {
+        if (DragDrop.IsDragging && !DisableDrop)
+            _dragOver = true;
+    }
 
     private void OnDragOver(DragEventArgs _)
     {

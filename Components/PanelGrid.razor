@@ -1,6 +1,4 @@
 @using ESLViewer.Models
-@using ESLViewer.Models.State
-@using ESLViewer.Services
 @inject StateService StateService
 @inject IJSRuntime JS
 @implements IAsyncDisposable
@@ -68,8 +66,6 @@
     private Dictionary<Guid, Panel?> _panelRefs = new();
     private Dictionary<Guid, GridPanel?> _gridPanelRefs = new();
     private Dictionary<Guid, DashboardPanel?> _dashboardRefs = new();
-    private int _columns = 2;
-    private int _panelSize = 500;
 
     private string? _statusMessage;
     private bool _statusIsError;
@@ -208,9 +204,7 @@
         }
         return new AppSnapshot
         {
-            Version = "1.0",
-            Columns = _columns,
-            PanelSize = _panelSize,
+            Version = "1.1",
             Panels = panels,
         };
     }
@@ -223,8 +217,6 @@
         _panelRefs.Clear();
         _gridPanelRefs.Clear();
         _dashboardRefs.Clear();
-        _columns = snapshot.Columns;
-        _panelSize = snapshot.PanelSize;
 
         foreach (var panelSnap in snapshot.Panels)
             _panels.Add(PanelModel.FromSnapshot(panelSnap));

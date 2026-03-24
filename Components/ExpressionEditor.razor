@@ -1,5 +1,4 @@
 @using ESLViewer.Models
-@using System.Collections.ObjectModel
 
 <div class="expr-panel">
     @foreach (var expr in Expressions)
@@ -30,7 +29,7 @@
 </div>
 
 @code {
-    [Parameter] public ObservableCollection<ExpressionModel> Expressions { get; set; } = new();
+    [Parameter] public List<ExpressionModel> Expressions { get; set; } = new();
     [Parameter] public EventCallback<ExpressionModel?> OnRefresh { get; set; }
     [Parameter] public EventCallback OnColorChanged { get; set; }
     [Parameter] public PanelType PanelType { get; set; } = PanelType.Numeric;

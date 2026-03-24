@@ -1,4 +1,3 @@
-using System.Collections.ObjectModel;
 using ESLViewer.Models.State;
 
 namespace ESLViewer.Models;
@@ -8,7 +7,7 @@ public class PanelModel
     public Guid Id { get; set; } = Guid.NewGuid();
     public string Title { get; set; } = "New Panel";
     public PanelType PanelType { get; set; } = PanelType.Numeric;
-    public ObservableCollection<ExpressionModel> Expressions { get; set; } = new();
+    public List<ExpressionModel> Expressions { get; set; } = new();
 
     /// <summary>
     /// Controls whether the close (×) button is shown on an EmptyPanel.
