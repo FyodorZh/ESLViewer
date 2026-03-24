@@ -1,0 +1,57 @@
+@using ESLViewer.Models
+
+<div class="settings-backdrop" @onclick="HandleBackdropClick">
+    <div class="settings-modal" @onclick:stopPropagation="true">
+        <div class="settings-modal-header">
+            <span class="settings-modal-title">⚙ Preferences</span>
+            <button class="btn-icon" title="Close" @onclick="() => OnClose.InvokeAsync()">&#x2715;</button>
+        </div>
+        <div class="settings-modal-body">
+
+            <div class="settings-section">
+                <div class="settings-section-title">Server</div>
+                <div class="settings-field">
+                    <label class="settings-label">Math Server URL</label>
+                    <input class="settings-input"
+                           type="text"
+                           placeholder="e.g. http://localhost:3456/"
+                           @bind="Prefs.ServerUrl" />
+                    <span class="settings-hint">Overrides the URL from appsettings.json. Takes effect on next page reload.</span>
+                </div>
+            </div>
+
+            <div class="settings-section">
+                <div class="settings-section-title">Panels</div>
+                <div class="settings-field">
+                    <label class="settings-label">Default auto-refresh interval</label>
+                    <select class="settings-select" @bind="Prefs.DefaultAutoRefreshInterval">
+                        <option value="Seconds3">3 seconds</option>
+                        <option value="Seconds5">5 seconds</option>
+                        <option value="Seconds10">10 seconds</option>
+                        <option value="Minute1">1 minute</option>
+                        <option value="Minute10">10 minutes</option>
+                        <option value="Hour1">1 hour</option>
+                    </select>
+                </div>
+                <div class="settings-field">
+                    <label class="settings-label settings-checkbox-label">
+                        <input type="checkbox" @bind="Prefs.ShowExpressionEditorByDefault" />
+                        Show expression editor by default on new panels
+                    </label>
+                </div>
+            </div>
+
+        </div>
+        <div class="settings-modal-footer">
+            <button class="btn-sm btn-primary" @onclick="() => OnClose.InvokeAsync()">Close</button>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public AppPreferences Prefs { get; set; } = new();
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    private void HandleBackdropClick() => OnClose.InvokeAsync();
+}
+

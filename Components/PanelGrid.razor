@@ -1,6 +1,7 @@
 @using ESLViewer.Models
 @inject StateService StateService
 @inject IJSRuntime JS
+@inject AppPreferencesService PrefsService
 @implements IAsyncDisposable
 
 <div class="app-header">
@@ -11,6 +12,7 @@
         <button class="btn-sm btn-outline-ghost" title="Restore state from cookie" @onclick="LoadFromCookieAsync">🍪 Load</button>
         <button class="btn-sm btn-outline-ghost" title="Copy state to clipboard" @onclick="CopyToClipboardAsync">📋 Copy</button>
         <button class="btn-sm btn-outline-ghost" title="Paste state from clipboard" @onclick="PasteFromClipboardAsync">📋 Paste</button>
+        <button class="btn-sm btn-outline-ghost" title="Open preferences" @onclick="() => _showSettings = true" style="margin-right:0.6rem">⚙ Settings</button>
         <button class="btn-sm btn-outline-ghost" title="Download state as JSON" @onclick="DownloadJsonAsync">⬇ Save</button>
         <label class="btn-sm btn-outline-ghost" title="Load state from JSON file" style="cursor:pointer">
             ⬆ Open
@@ -25,6 +27,11 @@
 </div>
 
 <a id="state-download-link" href="@_downloadUrl" download="eslviewer-state.json" style="display:none"></a>
+
+@if (_showSettings)
+{
+    <SettingsModal Prefs="_prefs" OnClose="() => _showSettings = false" />
+}
 
 <div class="panel-grid">
     @foreach (var panel in _panels)
@@ -70,6 +77,8 @@
     private string? _statusMessage;
     private bool _statusIsError;
     private string _downloadUrl = "#";
+    private bool _showSettings;
+    private AppPreferences _prefs = new();
 
     // auto-save on unload
     private DotNetObjectReference<PanelGrid>? _dotNetRef;
@@ -204,8 +213,9 @@
         }
         return new AppSnapshot
         {
-            Version = "1.1",
+            Version = "1.2",
             Panels = panels,
+            Preferences = _prefs,
         };
     }
 
@@ -213,6 +223,10 @@
 
     private async Task ApplyAppSnapshotAsync(AppSnapshot snapshot)
     {
+        // Restore preferences
+        _prefs = snapshot.Preferences ?? new AppPreferences();
+        PrefsService.Apply(_prefs);
+
         _panels.Clear();
         _panelRefs.Clear();
         _gridPanelRefs.Clear();

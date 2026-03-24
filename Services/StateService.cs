@@ -19,7 +19,7 @@ public class StateService
     /// Known supported versions. Deserialize returns null for truly unknown versions
     /// while still tolerating extra/unknown JSON fields for forward compatibility.
     /// </summary>
-    private static readonly HashSet<string> KnownVersions = new() { "1.0", "1.1" };
+    private static readonly HashSet<string> KnownVersions = new() { "1.0", "1.1", "1.2" };
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {

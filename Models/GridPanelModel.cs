@@ -96,7 +96,13 @@ public class GridPanelModel : PanelModel
         Cells = newCells;
         XSize--;
         if (ColumnFractions.Length > XSize)
-            ColumnFractions = ColumnFractions.Take(XSize).ToArray();
+        {
+            var fracs = ColumnFractions.Take(XSize).ToArray();
+            var sum = fracs.Sum();
+            ColumnFractions = sum > 0
+                ? fracs.Select(f => f / sum).ToArray()
+                : Enumerable.Repeat(1.0 / XSize, XSize).ToArray();
+        }
     }
 
     public void RemoveRow()
@@ -105,7 +111,13 @@ public class GridPanelModel : PanelModel
         Cells.RemoveRange(Cells.Count - XSize, XSize);
         YSize--;
         if (RowFractions.Length > YSize)
-            RowFractions = RowFractions.Take(YSize).ToArray();
+        {
+            var fracs = RowFractions.Take(YSize).ToArray();
+            var sum = fracs.Sum();
+            RowFractions = sum > 0
+                ? fracs.Select(f => f / sum).ToArray()
+                : Enumerable.Repeat(1.0 / YSize, YSize).ToArray();
+        }
     }
 
     // ── Snapshot ──────────────────────────────────────────────────────────────

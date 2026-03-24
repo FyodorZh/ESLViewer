@@ -13,5 +13,6 @@ builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(serverUr
 builder.Services.AddScoped<MathServerService>();
 builder.Services.AddScoped<StateService>();
 builder.Services.AddSingleton<DragDropService>();
+builder.Services.AddSingleton<AppPreferencesService>();
 
 await builder.Build().RunAsync();

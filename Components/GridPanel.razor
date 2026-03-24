@@ -158,18 +158,21 @@
     private void AddRow()
     {
         Model.AddRow();
+        _resizerXSize = -1; _resizerYSize = -1;
         StateHasChanged();
     }
 
     private void AddColumn()
     {
         Model.AddColumn();
+        _resizerXSize = -1; _resizerYSize = -1;
         StateHasChanged();
     }
 
     private void RemoveRow()
     {
         Model.RemoveRow();
+        _resizerXSize = -1; _resizerYSize = -1;
         CleanupStaleRefs();
         StateHasChanged();
     }
@@ -177,6 +180,7 @@
     private void RemoveColumn()
     {
         Model.RemoveColumn();
+        _resizerXSize = -1; _resizerYSize = -1;
         CleanupStaleRefs();
         StateHasChanged();
     }

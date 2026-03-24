@@ -10,8 +10,22 @@
               title="Drag to move panel">⠿</span>
         <input class="panel-title-input" type="text" @bind="Model.Title" @bind:event="oninput" />
         <span class="panel-header-spacer"></span>
+        <label class="panel-ar-label">
+            <input type="checkbox"
+                   checked="@_ar.IsEnabled"
+                   @onchange="OnAutoRefreshToggled" />
+            Auto-refresh
+        </label>
         @if (_ar.IsEnabled)
         {
+            <select class="ar-select panel-ar-select" value="@_ar.Interval" @onchange="OnIntervalChanged">
+                <option value="Seconds3">3 s</option>
+                <option value="Seconds5">5 s</option>
+                <option value="Seconds10">10 s</option>
+                <option value="Minute1">1 min</option>
+                <option value="Minute10">10 min</option>
+                <option value="Hour1">1 hour</option>
+            </select>
             <span class="ar-active-dot" title="Auto-refresh active"></span>
         }
         <span class="panel-type-badge">Dashboard</span>
@@ -43,23 +57,6 @@
                        value="@Model.BackgroundColor"
                        title="Background color"
                        @oninput="e => { Model.BackgroundColor = e.Value?.ToString() ?? Model.BackgroundColor; StateHasChanged(); }" />
-                <label class="ar-label ms-2">
-                    <input type="checkbox"
-                           checked="@_ar.IsEnabled"
-                           @onchange="OnAutoRefreshToggled" />
-                    Auto-refresh
-                </label>
-                @if (_ar.IsEnabled)
-                {
-                    <select class="ar-select" value="@_ar.Interval" @onchange="OnIntervalChanged">
-                        <option value="Seconds3">3 s</option>
-                        <option value="Seconds5">5 s</option>
-                        <option value="Seconds10">10 s</option>
-                        <option value="Minute1">1 min</option>
-                        <option value="Minute10">10 min</option>
-                        <option value="Hour1">1 hour</option>
-                    </select>
-                }
             </div>
         </div>
     }

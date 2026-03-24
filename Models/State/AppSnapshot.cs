@@ -11,8 +11,11 @@ public class AppSnapshot
 {
     public AppSnapshot() { }
 
-    /// <summary>Format version. Current: "1.1".</summary>
-    public string Version { get; set; } = "1.1";
+    /// <summary>Format version. Current: "1.2".</summary>
+    public string Version { get; set; } = "1.2";
 
     public List<PanelSnapshot> Panels { get; set; } = new();
+
+    /// <summary>User preferences (added in v1.2). Null means use defaults.</summary>
+    public AppPreferences? Preferences { get; set; }
 }

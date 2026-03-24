@@ -7,7 +7,11 @@
 @inject DragDropService DragDrop
 @implements IAsyncDisposable
 
-<div class="panel">
+@if (_isFullscreen)
+{
+    <div class="panel-fullscreen-backdrop" @onclick="ToggleFullscreen"></div>
+}
+<div class="panel @(_isFullscreen ? "panel-fullscreen" : "")">
     <div class="panel-header">
         <span class="drag-handle" draggable="true"
               @ondragstart="OnDragStart" @ondragend="OnDragEnd"
@@ -33,6 +37,8 @@
             <span class="ar-active-dot" title="Auto-refresh active"></span>
         }
         <span class="panel-type-badge">@Model.PanelType</span>
+        <button class="btn-icon" title="Configure" @onclick="ToggleConfig">&#x2699;</button>
+        <button class="btn-icon" title="@(_isFullscreen ? "Exit fullscreen" : "Fullscreen")" @onclick="ToggleFullscreen">@(_isFullscreen ? "⊡" : "⛶")</button>
         <button class="btn-icon btn-danger" title="Remove panel" @onclick="() => OnRemove.InvokeAsync(Model)">&#x2715;</button>
     </div>
 
@@ -82,10 +88,13 @@
         </ApexChart>
     </div>
 
-    <ExpressionEditor Expressions="Model.Expressions"
-                      PanelType="Model.PanelType"
-                      OnRefresh="RefreshOneAsync"
-                      OnColorChanged="UpdateChart" />
+    @if (_showConfig)
+    {
+        <ExpressionEditor Expressions="Model.Expressions"
+                          PanelType="Model.PanelType"
+                          OnRefresh="RefreshOneAsync"
+                          OnColorChanged="UpdateChart" />
+    }
 </div>
 
 @code {
@@ -100,6 +109,8 @@
     private int _chartKey;
     private bool _needsChartRender;
     private bool _chartReady;
+    private bool _showConfig = true;
+    private bool _isFullscreen;
 
     // Auto-refresh controller (#1)
     private readonly AutoRefreshController _ar = new();
@@ -225,6 +236,14 @@
     {
         if (Enum.TryParse<AutoRefreshInterval>(e.Value?.ToString(), out var interval))
             _ar.ChangeInterval(interval);
+    }
+
+    private void ToggleConfig() => _showConfig = !_showConfig;
+
+    private void ToggleFullscreen()
+    {
+        _isFullscreen = !_isFullscreen;
+        _chartKey++; // force ApexChart remount to recalculate size
     }
 
     // ── Snapshot / ViewRect interop ───────────────────────────────────────────
