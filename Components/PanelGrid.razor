@@ -36,24 +36,28 @@
         {
             <GridPanel Model="gridModel"
                        OnRemove="RemovePanel"
+                       OnReplaceWithEmpty="ReplacePanelWithEmpty"
                        @ref="_gridPanelRefs[gridModel.Id]" />
         }
         else if (current is DashboardPanelModel dashModel)
         {
             <DashboardPanel Model="dashModel"
                             OnRemove="RemovePanel"
+                            OnReplaceWithEmpty="ReplacePanelWithEmpty"
                             @ref="_dashboardRefs[dashModel.Id]" />
         }
         else if (current.PanelType == PanelType.Empty)
         {
             <EmptyPanel Model="current"
                         OnRemove="RemovePanel"
-                        OnReplace="type => ReplacePanel(current, type)" />
+                        OnReplace="type => ReplacePanel(current, type)"
+                        OnDropPanel="model => HandleTopLevelDrop(current, model)" />
         }
         else
         {
             <Panel Model="current"
                    OnRemove="RemovePanel"
+                   OnReplaceWithEmpty="ReplacePanelWithEmpty"
                    @ref="_panelRefs[current.Id]" />
         }
     }
@@ -116,6 +120,35 @@
         _panelRefs.Remove(panel.Id);
         _gridPanelRefs.Remove(panel.Id);
         _dashboardRefs.Remove(panel.Id);
+    }
+
+    /// <summary>Replaces a top-level panel with an empty slot (used as drag source callback).</summary>
+    private void ReplacePanelWithEmpty(PanelModel panel)
+    {
+        var idx = _panels.IndexOf(panel);
+        if (idx < 0) return;
+        _panelRefs.Remove(panel.Id);
+        _gridPanelRefs.Remove(panel.Id);
+        _dashboardRefs.Remove(panel.Id);
+        var empty = new PanelModel { PanelType = PanelType.Empty };
+        _panels[idx] = empty;
+        _panelRefs[empty.Id] = null;
+        StateHasChanged();
+    }
+
+    /// <summary>Accepts a panel dropped onto a top-level EmptyPanel slot.</summary>
+    private void HandleTopLevelDrop(PanelModel emptyPanel, PanelModel droppedPanel)
+    {
+        var idx = _panels.IndexOf(emptyPanel);
+        if (idx < 0) return;
+        _panelRefs.Remove(emptyPanel.Id);
+        _gridPanelRefs.Remove(emptyPanel.Id);
+        _dashboardRefs.Remove(emptyPanel.Id);
+        _panels[idx] = droppedPanel;
+        if (droppedPanel is GridPanelModel) _gridPanelRefs[droppedPanel.Id] = null;
+        else if (droppedPanel is DashboardPanelModel) _dashboardRefs[droppedPanel.Id] = null;
+        else _panelRefs[droppedPanel.Id] = null;
+        StateHasChanged();
     }
 
     private void ReplacePanel(PanelModel oldPanel, PanelType newType)

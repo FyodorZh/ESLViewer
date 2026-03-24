@@ -19,7 +19,7 @@ public class StateService
     /// Known supported versions. Deserialize returns null for truly unknown versions
     /// while still tolerating extra/unknown JSON fields for forward compatibility.
     /// </summary>
-    private static readonly HashSet<string> KnownVersions = new() { "1.0" };
+    private static readonly HashSet<string> KnownVersions = new() { "1.0", "1.1" };
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -73,6 +73,8 @@ public class StateService
     {
         var json = Serialize(snapshot);
         await js.InvokeVoidAsync("ESLViewer.setCookie", CookieName, json, days);
+        // Update the synchronous state cache so beforeunload can persist it without async round-trip
+        try { await js.InvokeVoidAsync("ESLViewer.updateStateCache", json); } catch { }
     }
 
     /// <summary>

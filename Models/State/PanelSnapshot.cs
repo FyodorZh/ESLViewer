@@ -23,6 +23,12 @@ public class PanelSnapshot
     /// </summary>
     public bool CanBeClosed { get; set; } = true;
 
+    /// <summary>Minimum width in pixels (for resize constraints). Default 100.</summary>
+    public int MinWidth { get; set; } = 100;
+
+    /// <summary>Minimum height in pixels (for resize constraints). Default 100.</summary>
+    public int MinHeight { get; set; } = 100;
+
     /// <summary>
     /// Last known visible axis range. Null means "auto" / not yet captured.
     /// </summary>
@@ -36,6 +42,12 @@ public class PanelSnapshot
     /// <summary>Number of rows in a Grid panel. Ignored for non-Grid panels.</summary>
     public int YSize { get; set; } = 1;
 
+    /// <summary>Column width fractions (length == XSize). Null/empty means uniform.</summary>
+    public double[]? ColumnFractions { get; set; }
+
+    /// <summary>Row height fractions (length == YSize). Null/empty means uniform.</summary>
+    public double[]? RowFractions { get; set; }
+
     /// <summary>Snapshots of child cells (row-major order). Only used for Grid panels.</summary>
     public List<PanelSnapshot> GridCells { get; set; } = new();
 
@@ -47,4 +59,3 @@ public class PanelSnapshot
     public bool DashboardAutoRefreshEnabled { get; set; }
     public string? DashboardAutoRefreshInterval { get; set; }
 }
-

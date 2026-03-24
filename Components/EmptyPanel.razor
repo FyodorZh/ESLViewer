@@ -1,6 +1,11 @@
 @using ESLViewer.Models
+@using ESLViewer.Services
+@inject DragDropService DragDrop
 
-<div class="panel empty-panel">
+<div class="panel empty-panel @(_dragOver ? "drag-over" : "")"
+     @ondragover="OnDragOver" @ondragover:preventDefault="true"
+     @ondragleave="OnDragLeave"
+     @ondrop="OnDropAsync">
     @if (Model.CanBeClosed)
     {
         <button class="btn-icon btn-danger empty-panel-close" title="Remove panel"
@@ -45,7 +50,27 @@
     [Parameter] public PanelModel Model { get; set; } = default!;
     [Parameter] public EventCallback<PanelModel> OnRemove { get; set; }
     [Parameter] public EventCallback<PanelType> OnReplace { get; set; }
+    [Parameter] public EventCallback<PanelModel> OnDropPanel { get; set; }
+    [Parameter] public bool DisableDrop { get; set; }
+
+    private bool _dragOver;
 
     private Task ReplaceWith(PanelType type) => OnReplace.InvokeAsync(type);
-}
 
+    private void OnDragOver(DragEventArgs _)
+    {
+        if (DragDrop.IsDragging && !DisableDrop)
+            _dragOver = true;
+    }
+
+    private void OnDragLeave() => _dragOver = false;
+
+    private async Task OnDropAsync()
+    {
+        _dragOver = false;
+        if (DisableDrop) return;
+        var dropped = await DragDrop.CompleteDrop();
+        if (dropped is not null)
+            await OnDropPanel.InvokeAsync(dropped);
+    }
+}

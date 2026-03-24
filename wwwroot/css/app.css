@@ -93,23 +93,42 @@ html, body {
 .panel-header {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    gap: 0.35rem;
     padding: 0.3rem 0.5rem;
     background: #f7f8fa;
     border-bottom: 1px solid #e2e6ea;
     flex-shrink: 0;
-}
+}}
 
 .panel-title-input {
-    flex: 1;
+    field-sizing: content;
+    min-width: 2ch;
+    max-width: 24ch;
     border: none;
     background: transparent;
     font-size: 0.63rem;
     font-weight: 600;
     color: #1a1a2e;
     outline: none;
-    min-width: 0;
+    flex-shrink: 1;
 }
+
+.panel-header-spacer {
+    flex: 1;
+    min-width: 4px;
+}
+
+/* Drag handle shown at the left of draggable panel headers */
+.drag-handle {
+    cursor: grab;
+    color: #b0b7c3;
+    font-size: 0.75rem;
+    padding: 0 0.15rem;
+    user-select: none;
+    flex-shrink: 0;
+    line-height: 1;
+}
+.drag-handle:active { cursor: grabbing; }
 
 .panel-title-input:hover,
 .panel-title-input:focus {
@@ -157,13 +176,9 @@ html, body {
 
 .expr-row {
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     gap: 0.35rem;
     margin-bottom: 0.35rem;
-}
-
-.expr-row > :not(.expr-input) {
-    margin-top: 0.3rem;
 }
 
 
@@ -487,3 +502,32 @@ html, body {
 
 /* Utility spacing helper used in DashboardPanel */
 .ms-2 { margin-left: 0.5rem; }
+
+/* ── Drag-over highlight (Stage 3) ──────────────────────────── */
+.empty-panel.drag-over {
+    border-color: #1b6ec2;
+    background: rgba(27, 110, 194, 0.08);
+    box-shadow: 0 0 0 2px rgba(27, 110, 194, 0.35);
+}
+
+/* ── Grid cell resizer handles (Stage 4) ─────────────────────── */
+.esl-resizer {
+    position: absolute;
+    z-index: 20;
+    opacity: 0;
+    transition: opacity 0.15s;
+    background: transparent;
+}
+.esl-resizer:hover,
+.esl-resizer:active {
+    opacity: 1;
+}
+.esl-col-resizer {
+    cursor: col-resize;
+    background: linear-gradient(to right, transparent 2px, #1b6ec2 2px, #1b6ec2 6px, transparent 6px);
+}
+.esl-row-resizer {
+    cursor: row-resize;
+    background: linear-gradient(to bottom, transparent 2px, #1b6ec2 2px, #1b6ec2 6px, transparent 6px);
+}
+

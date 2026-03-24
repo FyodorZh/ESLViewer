@@ -1,8 +1,18 @@
 @using ESLViewer.Models
+@inject DragDropService DragDrop
+@inject IJSRuntime JS
+@implements IAsyncDisposable
 
 <div class="grid-panel">
     <div class="panel-header">
+        @if (Model.CanBeClosed)
+        {
+            <span class="drag-handle" draggable="true"
+                  @ondragstart="OnDragStart" @ondragend="OnDragEnd"
+                  title="Drag to move panel">⠿</span>
+        }
         <input class="panel-title-input" type="text" @bind="Model.Title" @bind:event="oninput" />
+        <span class="panel-header-spacer"></span>
         <div class="grid-panel-header-controls">
             <span class="panel-type-badge">Grid @(Model.XSize)×@(Model.YSize)</span>
             <button class="btn-sm btn-primary grid-btn" title="Add row" @onclick="AddRow">+Row</button>
@@ -19,10 +29,11 @@
     </div>
 
     <div class="grid-panel-cells"
+         id="grid-cells-@Model.Id"
          style="display:grid;
-                grid-template-columns: repeat(@Model.XSize, 1fr);
-                grid-template-rows: repeat(@Model.YSize, 1fr);
-                gap:4px; padding:4px; overflow:hidden;">
+                grid-template-columns: @GetGridColumns();
+                grid-template-rows: @GetGridRows();
+                gap:8px; padding:4px; overflow:hidden; position:relative;">
         @foreach (var cell in Model.Cells)
         {
             var currentCell = cell;
@@ -30,24 +41,30 @@
             {
                 <GridPanel Model="nestedGrid"
                            OnRemove="m => ReplaceCellWithEmpty(m)"
+                           OnReplaceWithEmpty="ReplaceCellWithEmpty"
+                           DisableAllDrops="@IsBeingDragged"
                            @ref="_gridCellRefs[nestedGrid.Id]" />
             }
             else if (currentCell is DashboardPanelModel dashCell)
             {
                 <DashboardPanel Model="dashCell"
                                 OnRemove="m => ReplaceCellWithEmpty(m)"
+                                OnReplaceWithEmpty="ReplaceCellWithEmpty"
                                 @ref="_dashboardCellRefs[dashCell.Id]" />
             }
             else if (currentCell.PanelType == PanelType.Empty)
             {
                 <EmptyPanel Model="currentCell"
                             OnRemove="m => ReplaceCellWithEmpty(m)"
-                            OnReplace="type => ReplaceCell(currentCell, type)" />
+                            OnReplace="type => ReplaceCell(currentCell, type)"
+                            OnDropPanel="model => HandleCellDrop(currentCell, model)"
+                            DisableDrop="@(IsBeingDragged || DisableAllDrops)" />
             }
             else
             {
                 <Panel Model="currentCell"
                        OnRemove="m => ReplaceCellWithEmpty(m)"
+                       OnReplaceWithEmpty="ReplaceCellWithEmpty"
                        @ref="_cellRefs[currentCell.Id]" />
             }
         }
@@ -57,10 +74,68 @@
 @code {
     [Parameter] public GridPanelModel Model { get; set; } = default!;
     [Parameter] public EventCallback<PanelModel> OnRemove { get; set; }
+    [Parameter] public EventCallback<PanelModel> OnReplaceWithEmpty { get; set; }
+
+    /// <summary>
+    /// When true, all EmptyPanel descendants disable drop (set by the parent when THIS grid is being dragged).
+    /// </summary>
+    [Parameter] public bool DisableAllDrops { get; set; }
 
     private Dictionary<Guid, Panel?> _cellRefs = new();
     private Dictionary<Guid, GridPanel?> _gridCellRefs = new();
     private Dictionary<Guid, DashboardPanel?> _dashboardCellRefs = new();
+
+    private DotNetObjectReference<GridPanel>? _dotNetRef;
+
+    private bool IsBeingDragged => DragDrop.IsDragging && DragDrop.DraggedPanel?.Id == Model.Id;
+
+    // ── Grid columns/rows CSS ─────────────────────────────────────────────────
+
+    private string GetGridColumns() =>
+        string.Join(" ", Model.GetColumnFractions().Select(f => $"{f:F4}fr"));
+
+    private string GetGridRows() =>
+        string.Join(" ", Model.GetRowFractions().Select(f => $"{f:F4}fr"));
+
+    // ── Lifecycle ─────────────────────────────────────────────────────────────
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // Ensure refs exist before we try to access them
+            foreach (var cell in Model.Cells)
+            {
+                if (cell is GridPanelModel g) _gridCellRefs.TryAdd(g.Id, null);
+                else if (cell is DashboardPanelModel d) _dashboardCellRefs.TryAdd(d.Id, null);
+                else _cellRefs.TryAdd(cell.Id, null);
+            }
+        }
+        await InitResizersAsync();
+    }
+
+    private async Task InitResizersAsync()
+    {
+        if (_dotNetRef is null)
+            _dotNetRef = DotNetObjectReference.Create(this);
+        try
+        {
+            await JS.InvokeVoidAsync("ESLViewer.initGridResizers",
+                $"grid-cells-{Model.Id}", Model.MinWidth, _dotNetRef);
+        }
+        catch { /* ignore if JS not ready */ }
+    }
+
+    [JSInvokable]
+    public void OnResizeComplete(double[] colFracs, double[] rowFracs)
+    {
+        // Guard against stale JS calls if the grid was resized between drag start and end
+        if (colFracs.Length == Model.XSize)
+            Model.ColumnFractions = colFracs;
+        if (rowFracs.Length == Model.YSize)
+            Model.RowFractions = rowFracs;
+        // No StateHasChanged — CSS already updated by JS; model updated for next snapshot.
+    }
 
     // ── Cell mutations ────────────────────────────────────────────────────────
 
@@ -90,13 +165,15 @@
         StateHasChanged();
     }
 
-    /// <summary>
-    /// Replace an EmptyPanel cell with a new panel of the given type.
-    /// </summary>
+    /// <summary>Replace an EmptyPanel cell with a new panel of the given type.</summary>
     private void ReplaceCell(PanelModel oldCell, PanelType type)
     {
         var idx = Model.Cells.IndexOf(oldCell);
         if (idx < 0) return;
+
+        _cellRefs.Remove(oldCell.Id);
+        _gridCellRefs.Remove(oldCell.Id);
+        _dashboardCellRefs.Remove(oldCell.Id);
 
         PanelModel newCell = type switch
         {
@@ -106,12 +183,13 @@
         };
 
         Model.Cells[idx] = newCell;
+        if (newCell is GridPanelModel ng) _gridCellRefs[ng.Id] = null;
+        else if (newCell is DashboardPanelModel nd) _dashboardCellRefs[nd.Id] = null;
+        else _cellRefs[newCell.Id] = null;
         StateHasChanged();
     }
 
-    /// <summary>
-    /// Replace a non-empty cell with a fresh EmptyPanel (triggered by the cell's remove button).
-    /// </summary>
+    /// <summary>Replace a non-empty cell with a fresh EmptyPanel (triggered by the cell's remove button).</summary>
     private void ReplaceCellWithEmpty(PanelModel model)
     {
         var idx = Model.Cells.IndexOf(model);
@@ -120,7 +198,26 @@
         _cellRefs.Remove(model.Id);
         _gridCellRefs.Remove(model.Id);
         _dashboardCellRefs.Remove(model.Id);
-        Model.Cells[idx] = new PanelModel { PanelType = PanelType.Empty, CanBeClosed = false };
+        var empty = new PanelModel { PanelType = PanelType.Empty, CanBeClosed = false };
+        Model.Cells[idx] = empty;
+        _cellRefs[empty.Id] = null;
+        StateHasChanged();
+    }
+
+    /// <summary>Accept a dropped panel at an empty cell position.</summary>
+    private void HandleCellDrop(PanelModel emptyCell, PanelModel droppedPanel)
+    {
+        var idx = Model.Cells.IndexOf(emptyCell);
+        if (idx < 0) return;
+
+        _cellRefs.Remove(emptyCell.Id);
+        _gridCellRefs.Remove(emptyCell.Id);
+        _dashboardCellRefs.Remove(emptyCell.Id);
+
+        Model.Cells[idx] = droppedPanel;
+        if (droppedPanel is GridPanelModel dg) _gridCellRefs[dg.Id] = null;
+        else if (droppedPanel is DashboardPanelModel dd) _dashboardCellRefs[dd.Id] = null;
+        else _cellRefs[droppedPanel.Id] = null;
         StateHasChanged();
     }
 
@@ -133,6 +230,18 @@
             if (!ids.Contains(key)) _gridCellRefs.Remove(key);
         foreach (var key in _dashboardCellRefs.Keys.ToList())
             if (!ids.Contains(key)) _dashboardCellRefs.Remove(key);
+    }
+
+    // ── Drag ──────────────────────────────────────────────────────────────────
+
+    private void OnDragStart()
+    {
+        DragDrop.StartDrag(Model, () => OnReplaceWithEmpty.InvokeAsync(Model));
+    }
+
+    private void OnDragEnd()
+    {
+        if (DragDrop.IsDragging) DragDrop.Cancel();
     }
 
     // ── Public API (used by PanelGrid) ────────────────────────────────────────
@@ -164,6 +273,14 @@
         }
         return snapshot;
     }
+
+    public async ValueTask DisposeAsync()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("ESLViewer.cleanupGridResizers", $"grid-cells-{Model.Id}");
+        }
+        catch { }
+        _dotNetRef?.Dispose();
+    }
 }
-
-

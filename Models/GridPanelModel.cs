@@ -14,6 +14,23 @@ public class GridPanelModel : PanelModel
     /// <summary>Row-major flat list of child panels.</summary>
     public List<PanelModel> Cells { get; set; } = new();
 
+    /// <summary>
+    /// Column width fractions (length == XSize). Empty means uniform.
+    /// Stored as raw ratios; do not need to sum to 1 — the CSS fr unit normalizes them.
+    /// </summary>
+    public double[] ColumnFractions { get; set; } = Array.Empty<double>();
+
+    /// <summary>Row height fractions (length == YSize). Empty means uniform.</summary>
+    public double[] RowFractions { get; set; } = Array.Empty<double>();
+
+    /// <summary>Returns effective column fractions, falling back to uniform if sizes mismatch.</summary>
+    public double[] GetColumnFractions() =>
+        ColumnFractions.Length == XSize ? ColumnFractions : Enumerable.Repeat(1.0, XSize).ToArray();
+
+    /// <summary>Returns effective row fractions, falling back to uniform if sizes mismatch.</summary>
+    public double[] GetRowFractions() =>
+        RowFractions.Length == YSize ? RowFractions : Enumerable.Repeat(1.0, YSize).ToArray();
+
     public GridPanelModel()
     {
         PanelType = PanelType.Grid;
@@ -37,6 +54,10 @@ public class GridPanelModel : PanelModel
         }
         Cells = newCells;
         XSize++;
+        // Append a new uniform fraction
+        var fracs = GetColumnFractions().ToList();
+        fracs.Add(fracs.Count > 0 ? fracs.Average() : 1.0);
+        ColumnFractions = fracs.ToArray();
     }
 
     public void AddRow()
@@ -44,6 +65,9 @@ public class GridPanelModel : PanelModel
         for (int col = 0; col < XSize; col++)
             Cells.Add(new PanelModel { PanelType = PanelType.Empty, CanBeClosed = false });
         YSize++;
+        var fracs = GetRowFractions().ToList();
+        fracs.Add(fracs.Count > 0 ? fracs.Average() : 1.0);
+        RowFractions = fracs.ToArray();
     }
 
     public bool CanRemoveColumn()
@@ -71,6 +95,8 @@ public class GridPanelModel : PanelModel
                 newCells.Add(Cells[row * XSize + col]);
         Cells = newCells;
         XSize--;
+        if (ColumnFractions.Length > XSize)
+            ColumnFractions = ColumnFractions.Take(XSize).ToArray();
     }
 
     public void RemoveRow()
@@ -78,6 +104,8 @@ public class GridPanelModel : PanelModel
         if (!CanRemoveRow()) return;
         Cells.RemoveRange(Cells.Count - XSize, XSize);
         YSize--;
+        if (RowFractions.Length > YSize)
+            RowFractions = RowFractions.Take(YSize).ToArray();
     }
 
     // ── Snapshot ──────────────────────────────────────────────────────────────
@@ -87,8 +115,12 @@ public class GridPanelModel : PanelModel
         Title = Title,
         PanelType = "Grid",
         CanBeClosed = CanBeClosed,
+        MinWidth = MinWidth,
+        MinHeight = MinHeight,
         XSize = XSize,
         YSize = YSize,
+        ColumnFractions = GetColumnFractions(),
+        RowFractions = GetRowFractions(),
         GridCells = Cells.Select(c => c.ToSnapshot()).ToList(),
         ViewRect = null,
     };
@@ -99,10 +131,17 @@ public class GridPanelModel : PanelModel
         {
             Title = snapshot.Title,
             CanBeClosed = snapshot.CanBeClosed,
+            MinWidth = snapshot.MinWidth,
+            MinHeight = snapshot.MinHeight,
         };
         model.Cells.Clear();
         model.XSize = Math.Max(1, snapshot.XSize);
         model.YSize = Math.Max(1, snapshot.YSize);
+
+        if (snapshot.ColumnFractions is { Length: > 0 })
+            model.ColumnFractions = snapshot.ColumnFractions;
+        if (snapshot.RowFractions is { Length: > 0 })
+            model.RowFractions = snapshot.RowFractions;
 
         foreach (var cellSnap in snapshot.GridCells)
             model.Cells.Add(PanelModel.FromSnapshot(cellSnap));

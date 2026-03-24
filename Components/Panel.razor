@@ -4,12 +4,16 @@
 @using ApexCharts
 @inject MathServerService MathServer
 @inject IJSRuntime JS
+@inject DragDropService DragDrop
 @implements IAsyncDisposable
 
 <div class="panel">
     <div class="panel-header">
+        <span class="drag-handle" draggable="true"
+              @ondragstart="OnDragStart" @ondragend="OnDragEnd"
+              title="Drag to move panel">⠿</span>
         <input class="panel-title-input" type="text" @bind="Model.Title" @bind:event="oninput" />
-        <span class="panel-type-badge">@Model.PanelType</span>
+        <span class="panel-header-spacer"></span>
         <label class="panel-ar-label">
             <input type="checkbox"
                    checked="@_autoRefreshEnabled"
@@ -28,6 +32,7 @@
             </select>
             <span class="ar-active-dot" title="Auto-refresh active"></span>
         }
+        <span class="panel-type-badge">@Model.PanelType</span>
         <button class="btn-icon btn-danger" title="Remove panel" @onclick="() => OnRemove.InvokeAsync(Model)">&#x2715;</button>
     </div>
 
@@ -90,6 +95,7 @@
 @code {
     [Parameter] public PanelModel Model { get; set; } = default!;
     [Parameter] public EventCallback<PanelModel> OnRemove { get; set; }
+    [Parameter] public EventCallback<PanelModel> OnReplaceWithEmpty { get; set; }
 
     private ApexChart<PanelPoint>? _chart;
     private ApexChartOptions<PanelPoint> _options = new();
@@ -354,6 +360,19 @@
         var snapshot = Model.ToSnapshot();
         snapshot.ViewRect = await GetViewRect();
         return snapshot;
+    }
+
+    // ── Drag ──────────────────────────────────────────────────────────────────
+
+    private void OnDragStart()
+    {
+        DragDrop.StartDrag(Model, () => OnReplaceWithEmpty.InvokeAsync(Model));
+    }
+
+    private void OnDragEnd()
+    {
+        // Cancel if the drop was not completed (dragged outside any valid target)
+        if (DragDrop.IsDragging) DragDrop.Cancel();
     }
 
     public ValueTask DisposeAsync()

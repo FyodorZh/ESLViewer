@@ -12,5 +12,6 @@ var serverUrl = builder.Configuration["ServerUrl"] ?? builder.HostEnvironment.Ba
 builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(serverUrl), DefaultVersionPolicy = HttpVersionPolicy.RequestVersionOrLower});
 builder.Services.AddScoped<MathServerService>();
 builder.Services.AddScoped<StateService>();
+builder.Services.AddSingleton<DragDropService>();
 
 await builder.Build().RunAsync();

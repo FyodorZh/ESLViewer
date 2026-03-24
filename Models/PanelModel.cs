@@ -17,6 +17,12 @@ public class PanelModel
     /// </summary>
     public bool CanBeClosed { get; set; } = true;
 
+    /// <summary>Minimum width in pixels for resize constraints. Default 100.</summary>
+    public int MinWidth { get; set; } = 100;
+
+    /// <summary>Minimum height in pixels for resize constraints. Default 100.</summary>
+    public int MinHeight { get; set; } = 100;
+
     /// <summary>
     /// Creates a snapshot of this panel's persistable state.
     /// ViewRect is left null here — it is populated asynchronously by
@@ -28,6 +34,8 @@ public class PanelModel
         PanelType = PanelType.ToString(),
         Expressions = Expressions.Select(e => e.ToSnapshot()).ToList(),
         CanBeClosed = CanBeClosed,
+        MinWidth = MinWidth,
+        MinHeight = MinHeight,
         ViewRect = null,
     };
 
@@ -48,6 +56,8 @@ public class PanelModel
             Title = snapshot.Title,
             PanelType = Enum.TryParse<PanelType>(snapshot.PanelType, out var pt) ? pt : PanelType.Numeric,
             CanBeClosed = snapshot.CanBeClosed,
+            MinWidth = snapshot.MinWidth,
+            MinHeight = snapshot.MinHeight,
         };
         foreach (var exprSnap in snapshot.Expressions)
         {
