@@ -36,8 +36,8 @@
 
     private string Placeholder => PanelType switch
     {
-        PanelType.DateTime => "e.g. my_timeseries()",
-        _ => "e.g. x^2"
+        PanelType.DateTime => "e.g. TestDates()",
+        _ => "e.g. TestNumeric()"
     };
 
     private static readonly string[] DefaultColors =

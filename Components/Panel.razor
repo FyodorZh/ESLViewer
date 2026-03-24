@@ -149,7 +149,7 @@
 
         if (Model.Expressions.Count == 0)
         {
-            var defaultExpr = Model.PanelType == PanelType.DateTime ? string.Empty : "x^2";
+            var defaultExpr = string.Empty;
             Model.Expressions.Add(new ExpressionModel { Expression = defaultExpr, Color = "#1b6ec2", Label = "f1" });
         }
     }
