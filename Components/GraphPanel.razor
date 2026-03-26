@@ -2,6 +2,7 @@
 @using ESLViewer.Models.State
 @using ESLViewer.Services
 @using ApexCharts
+@using System.Globalization
 @inject MathServerService MathServer
 @inject IJSRuntime JS
 @inject DragDropService DragDrop
@@ -95,6 +96,7 @@
     @if (_showConfig)
     {
         <ExpressionEditor Expressions="Model.Expressions"
+                          Parameters="Model.Parameters"
                           PanelType="Model.PanelType"
                           OnRefresh="RefreshOneAsync"
                           OnColorChanged="UpdateChartManual" />
@@ -205,7 +207,7 @@
         StateHasChanged();
 
         if (!string.IsNullOrWhiteSpace(expr.Expression))
-            expr.Points = await MathServer.EvaluateAsync(expr.Expression, Model.PanelType, token);
+            expr.Points = await MathServer.EvaluateAsync(SubstituteParameters(expr.Expression), Model.PanelType, token);
 
         _loading = false;
         await UpdateChart(animate);
@@ -220,11 +222,21 @@
         foreach (var expr in Model.Expressions)
         {
             if (!string.IsNullOrWhiteSpace(expr.Expression))
-                expr.Points = await MathServer.EvaluateAsync(expr.Expression, Model.PanelType, token);
+                expr.Points = await MathServer.EvaluateAsync(SubstituteParameters(expr.Expression), Model.PanelType, token);
         }
 
         _loading = false;
         await UpdateChart(animate);
+    }
+
+    /// Replaces all {ParamName} tokens in an expression string with the current parameter values.
+    private string SubstituteParameters(string expression)
+    {
+        if (Model.Parameters.Count == 0) return expression;
+        var result = expression;
+        foreach (var p in Model.Parameters)
+            result = result.Replace("{" + p.Name + "}", p.FormattedValue);
+        return result;
     }
 
     private async Task UpdateChart(bool animate = true)
@@ -262,10 +274,11 @@
 
     /// No-arg wrapper so UpdateChart can be passed as EventCallback (e.g. OnColorChanged).
     private Task UpdateChartManual() => UpdateChart(animate: true);
-
-    /// Pushes the animation enabled/disabled setting directly to the live ApexChart instance.
+    /// Pushes the animation enabled/disabled setting directly to the live ApexChart instance
+    /// and also keeps the C# options in sync so Blazor-ApexCharts honours it during RenderAsync.
     private async Task ApplyAnimationAsync(bool enabled)
     {
+        SetAnimationEnabled(enabled); // keep C# options in sync
         try
         {
             await JS.InvokeVoidAsync("ESLViewer.setChartAnimation",

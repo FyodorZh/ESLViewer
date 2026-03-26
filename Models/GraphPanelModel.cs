@@ -9,6 +9,7 @@ namespace ESLViewer.Models;
 public abstract class GraphPanelModel : PanelModel
 {
     public List<ExpressionModel> Expressions { get; set; } = new();
+    public List<ParameterModel> Parameters { get; set; } = new();
     public bool AutoRefreshEnabled { get; set; }
     public AutoRefreshInterval AutoRefreshInterval { get; set; } = AutoRefreshInterval.Seconds5;
 
@@ -17,6 +18,7 @@ public abstract class GraphPanelModel : PanelModel
         Title = Title,
         PanelType = PanelType.ToString(),
         Expressions = Expressions.Select(e => e.ToSnapshot()).ToList(),
+        GraphParameters = Parameters.Select(p => p.ToSnapshot()).ToList(),
         CanBeClosed = CanBeClosed,
         MinWidth = MinWidth,
         MinHeight = MinHeight,
@@ -40,6 +42,12 @@ public abstract class GraphPanelModel : PanelModel
             var expr = new ExpressionModel();
             expr.ApplySnapshot(exprSnap);
             Expressions.Add(expr);
+        }
+        foreach (var paramSnap in snapshot.GraphParameters)
+        {
+            var param = new ParameterModel();
+            param.ApplySnapshot(paramSnap);
+            Parameters.Add(param);
         }
     }
 }

@@ -1,7 +1,6 @@
 @using ESLViewer.Models
 @inject MathServerService MathServer
 @inject DragDropService DragDrop
-@inject IJSRuntime JS
 @implements IAsyncDisposable
 
 <div class="panel console-panel">
@@ -31,7 +30,7 @@
         </div>
     }
 
-    <div class="console-output">
+    <div class="console-output" style="overflow-anchor: none">
         @foreach (var line in ((IEnumerable<ConsoleLine>)Model.ConsoleLog).Reverse())
         {
             if (line.IsInput)
@@ -111,6 +110,7 @@
             {
                 _savedInput = _currentInput;
                 _historyIndex = Model.CommandHistory.Count - 1;
+                _currentInput = Model.CommandHistory[_historyIndex]; // show last command immediately
             }
             // Down when not browsing: do nothing
             return;

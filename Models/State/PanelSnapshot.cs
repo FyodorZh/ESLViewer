@@ -39,6 +39,9 @@ public class PanelSnapshot
     public bool GraphAutoRefreshEnabled { get; set; }
     public string? GraphAutoRefreshInterval { get; set; }
 
+    /// <summary>Slider parameters defined in the expression editor.</summary>
+    public List<ParameterSnapshot> GraphParameters { get; set; } = new();
+
     // ── Grid-panel specific ──────────────────────────────────────────────────
 
     /// <summary>Number of columns in a Grid panel. Ignored for non-Grid panels.</summary>

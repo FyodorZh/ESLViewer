@@ -1,4 +1,6 @@
 @using ESLViewer.Models
+@using System.Globalization
+@using System.Numerics
 
 <div class="expr-panel">
     @foreach (var expr in Expressions)
@@ -22,14 +24,49 @@
             <button class="btn-icon btn-danger" title="Remove" @onclick="() => Remove(current)">&#x2715;</button>
         </div>
     }
+
+    @if (Parameters.Count > 0)
+    {
+        <div class="param-section">
+            @foreach (var param in Parameters)
+            {
+                var p = param;
+                <div class="param-row">
+                    <input class="param-name-input" type="text"
+                           value="@p.Name"
+                           title="Parameter name — use {Name} in expressions"
+                           @oninput="e => p.Name = e.Value?.ToString() ?? p.Name" />
+                    <input class="param-num-input" type="number"
+                           value="@p.Min.ToString("G6", CultureInfo.InvariantCulture)"
+                           title="Minimum"
+                           @oninput="e => { p.Min = ParseDouble(e.Value?.ToString(), p.Min); ClampParamValue(p); }" />
+                    <input class="param-slider" type="range"
+                           min="@p.Min.ToString("G", CultureInfo.InvariantCulture)"
+                           max="@p.Max.ToString("G", CultureInfo.InvariantCulture)"
+                           step="any"
+                           value="@p.Value.ToString("G", CultureInfo.InvariantCulture)"
+                           @oninput="e => OnSliderChanged(e, p)" />
+                    <input class="param-num-input" type="number"
+                           value="@p.Max.ToString("G6", CultureInfo.InvariantCulture)"
+                           title="Maximum"
+                           @oninput="e => { p.Max = ParseDouble(e.Value?.ToString(), p.Max); ClampParamValue(p); }" />
+                    <span class="param-value-display" title="Current value">@p.Value.ToString("G6", CultureInfo.InvariantCulture)</span>
+                    <button class="btn-icon btn-danger" title="Remove parameter" @onclick="() => RemoveParameter(p)">&#x2715;</button>
+                </div>
+            }
+        </div>
+    }
+
     <div class="expr-actions">
         <button class="btn-sm btn-secondary" @onclick="AddExpression">+ Add expression</button>
+        <button class="btn-sm btn-secondary" @onclick="AddParameter">+ Add parameter</button>
         <button class="btn-sm btn-primary" @onclick="() => OnRefresh.InvokeAsync(null)">&#8635; Refresh</button>
     </div>
 </div>
 
 @code {
     [Parameter] public List<ExpressionModel> Expressions { get; set; } = new();
+    [Parameter] public List<ParameterModel> Parameters { get; set; } = new();
     [Parameter] public EventCallback<ExpressionModel?> OnRefresh { get; set; }
     [Parameter] public EventCallback OnColorChanged { get; set; }
     [Parameter] public PanelType PanelType { get; set; } = PanelType.Numeric;
@@ -63,4 +100,32 @@
         if (e.Key == "Enter" && !e.ShiftKey)
             OnRefresh.InvokeAsync(expr);
     }
+
+    private void AddParameter()
+    {
+        var n = Parameters.Count + 1;
+        while (Parameters.Any(p => p.Name == $"Param{n}")) n++;
+        Parameters.Add(new ParameterModel { Name = $"Param{n}", Min = 0, Max = 100, Value = 50 });
+    }
+
+    private void RemoveParameter(ParameterModel param)
+    {
+        Parameters.Remove(param);
+        OnRefresh.InvokeAsync(null);
+    }
+
+    private async Task OnSliderChanged(ChangeEventArgs e, ParameterModel param)
+    {
+        param.Value = ParseDouble(e.Value?.ToString(), param.Value);
+        await OnRefresh.InvokeAsync(null);
+    }
+
+    private static void ClampParamValue(ParameterModel param)
+    {
+        if (param.Value < param.Min) param.Value = param.Min;
+        if (param.Value > param.Max) param.Value = param.Max;
+    }
+
+    private static double ParseDouble(string? s, double fallback) =>
+        double.TryParse(s, NumberStyles.Any, CultureInfo.InvariantCulture, out var v) ? v : fallback;
 }

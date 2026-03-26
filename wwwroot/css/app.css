@@ -234,6 +234,65 @@ html, body {
     margin-top: 0.3rem;
 }
 
+/* ── Parameter rows ──────────────────────────────────────── */
+.param-section {
+    border-top: 1px dashed #ced4da;
+    margin-top: 0.35rem;
+    padding-top: 0.35rem;
+}
+
+.param-row {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    margin-bottom: 0.35rem;
+}
+
+.param-name-input {
+    width: 82px;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    padding: 0.22rem 0.4rem;
+    font-size: 0.8rem;
+    font-family: 'Courier New', monospace;
+    flex-shrink: 0;
+    outline: none;
+    transition: border-color .15s;
+}
+.param-name-input:focus { border-color: #1b6ec2; box-shadow: 0 0 0 2px rgba(27,110,194,.2); }
+
+.param-num-input {
+    width: 68px;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    padding: 0.22rem 0.35rem;
+    font-size: 0.8rem;
+    flex-shrink: 0;
+    outline: none;
+    -moz-appearance: textfield;
+    transition: border-color .15s;
+}
+.param-num-input::-webkit-inner-spin-button,
+.param-num-input::-webkit-outer-spin-button { opacity: 0.5; }
+.param-num-input:focus { border-color: #1b6ec2; box-shadow: 0 0 0 2px rgba(27,110,194,.2); }
+
+.param-slider {
+    flex: 1;
+    min-width: 80px;
+    cursor: pointer;
+    accent-color: #1b6ec2;
+    height: 18px;
+}
+
+.param-value-display {
+    font-family: 'Courier New', monospace;
+    font-size: 0.78rem;
+    color: #495057;
+    min-width: 60px;
+    text-align: right;
+    flex-shrink: 0;
+}
+
 /* ── Buttons ─────────────────────────────────────────────── */
 .btn-sm {
     padding: 0.28rem 0.7rem;
@@ -841,6 +900,7 @@ html, body {
 .console-output {
     flex: 1;
     overflow-y: auto;
+    overflow-anchor: none; /* prevent browser from scrolling down when new lines appear at top */
     background: #1a1a2e;
     color: #e0e0e0;
     font-family: 'Courier New', monospace;
