@@ -712,6 +712,11 @@ html, body {
     text-align: left;
 }
 
+/* Value-column headers align right to match cell content */
+.esl-table thead th:not(:first-child) {
+    text-align: right;
+}
+
 .esl-table tbody tr:nth-child(even) {
     background: #f7f8fa;
 }
@@ -735,4 +740,166 @@ html, body {
     color: #1b6ec2;
     text-align: right;
 }
+
+/* ── Console Panel ────────────────────────────────────────── */
+
+.console-panel {
+    display: flex;
+    flex-direction: column;
+}
+
+/* Small text buttons for panel headers (Clear History / Clear Console) */
+.panel-header-btn {
+    background: transparent;
+    border: 1px solid #ced4da;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 0.6rem;
+    font-weight: 500;
+    padding: 0.07rem 0.4rem;
+    color: #495057;
+    white-space: nowrap;
+    flex-shrink: 0;
+    line-height: 1.2;
+    transition: background .15s, border-color .15s;
+}
+.panel-header-btn:hover:not(:disabled) {
+    background: rgba(0,0,0,.06);
+    border-color: #adb5bd;
+}
+.panel-header-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* Command input area (below console output) */
+.console-command-wrapper {
+    display: flex;
+    background: #fafbfc;
+    border-top: 1px solid #e2e6ea;
+    padding: 0.3rem 0.5rem;
+    flex-shrink: 0;
+}
+
+.console-command-input {
+    flex: 1;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    padding: 0.28rem 0.45rem;
+    font-size: 0.82rem;
+    font-family: 'Courier New', monospace;
+    resize: none;
+    overflow: hidden;
+    field-sizing: content;
+    line-height: 1.4;
+    outline: none;
+    transition: border-color .15s;
+    min-height: calc(1.4em + 0.56rem + 2px);
+    background: #fff;
+    color: #1a1a2e;
+}
+.console-command-input:focus {
+    border-color: #1b6ec2;
+    box-shadow: 0 0 0 2px rgba(27,110,194,.2);
+}
+
+/* Command-prefix strip */
+.console-prefix-wrapper {
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    border-bottom: 1px solid #2d3250;
+}
+
+.console-prefix-input {
+    width: 100%;
+    background: #12121f;
+    color: #a8d8a8;
+    border: none;
+    border-radius: 0;
+    font-family: 'Courier New', monospace;
+    font-size: 0.82rem;
+    padding: 0.3rem 0.5rem;
+    resize: none;
+    min-height: calc(1.4em + 0.6rem);
+    line-height: 1.4;
+    outline: none;
+    overflow-y: auto;
+    field-sizing: content;
+}
+
+.console-prefix-resizer {
+    height: 5px;
+    cursor: row-resize;
+    background: rgba(255,255,255,0.07);
+    flex-shrink: 0;
+    transition: background 0.15s;
+}
+.console-prefix-resizer:hover,
+.console-prefix-resizer:active {
+    background: rgba(27,110,194,0.5);
+}
+
+/* Scrollable output area */
+.console-output {
+    flex: 1;
+    overflow-y: auto;
+    background: #1a1a2e;
+    color: #e0e0e0;
+    font-family: 'Courier New', monospace;
+    font-size: 0.82rem;
+    padding: 0.4rem 0.6rem;
+    min-height: 0;
+}
+
+.console-line {
+    line-height: 1.45;
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+
+.console-line-input {
+    color: #7be87b;
+}
+
+.console-line-output {
+    color: #c8c8d4;
+}
+
+.console-prompt {
+    color: #7be87b;
+    user-select: none;
+}
+
+/* Bottom input row */
+.console-input-area {
+    display: flex;
+    align-items: flex-start;
+    background: #1a1a2e;
+    border-top: 1px solid #2d3250;
+    padding: 0.2rem 0.5rem 0.25rem;
+    flex-shrink: 0;
+}
+
+.console-input-area .console-prompt {
+    padding-top: 0.28rem;
+    flex-shrink: 0;
+    white-space: pre;
+}
+
+.console-input {
+    flex: 1;
+    background: transparent;
+    color: #7be87b;
+    border: none;
+    border-radius: 0;
+    font-family: 'Courier New', monospace;
+    font-size: 0.82rem;
+    resize: none;
+    outline: none;
+    line-height: 1.4;
+    min-height: calc(1.4em + 0.56rem);
+    overflow: hidden;
+    field-sizing: content;
+    padding: 0.28rem 0;
+    caret-color: #7be87b;
+}
+
 

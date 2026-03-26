@@ -58,29 +58,37 @@
                         OnReplaceWithEmpty="ReplacePanelWithEmpty"
                         @ref="_tableRefs[tableModel.Id]" />
         }
-        else if (current.PanelType == PanelType.Empty)
+        else if (current is ConsolePanelModel consoleModel)
+        {
+            <ConsolePanel Model="consoleModel"
+                          OnRemove="RemovePanel"
+                          OnReplaceWithEmpty="ReplacePanelWithEmpty"
+                          @ref="_consoleRefs[consoleModel.Id]" />
+        }
+        else if (current is EmptyPanelModel)
         {
             <EmptyPanel Model="current"
                         OnRemove="RemovePanel"
                         OnReplace="type => ReplacePanel(current, type)"
                         OnDropPanel="model => HandleTopLevelDrop(current, model)" />
         }
-        else
+        else if (current is GraphPanelModel graphModel)
         {
-            <Panel Model="current"
-                   OnRemove="RemovePanel"
-                   OnReplaceWithEmpty="ReplacePanelWithEmpty"
-                   @ref="_panelRefs[current.Id]" />
+            <GraphPanel Model="graphModel"
+                        OnRemove="RemovePanel"
+                        OnReplaceWithEmpty="ReplacePanelWithEmpty"
+                        @ref="_graphPanelRefs[graphModel.Id]" />
         }
     }
 </div>
 
 @code {
     private List<PanelModel> _panels = new();
-    private Dictionary<Guid, Panel?> _panelRefs = new();
+    private Dictionary<Guid, GraphPanel?> _graphPanelRefs = new();
     private Dictionary<Guid, GridPanel?> _gridPanelRefs = new();
     private Dictionary<Guid, DashboardPanel?> _dashboardRefs = new();
     private Dictionary<Guid, TablePanel?> _tableRefs = new();
+    private Dictionary<Guid, ConsolePanel?> _consoleRefs = new();
 
     private string? _statusMessage;
     private bool _statusIsError;
@@ -95,7 +103,7 @@
 
     protected override void OnInitialized()
     {
-        _panels.Add(new GridPanelModel { Title = "Grid 1", CanBeClosed = false });
+        _panels.Add(new GridPanelModel { Title = "Grid", CanBeClosed = false });
         EnsurePanelRefKeys();
     }
 
@@ -114,10 +122,13 @@
     {
         PanelModel panel = type switch
         {
-            PanelType.Grid      => new GridPanelModel { Title = $"Grid {_panels.Count + 1}" },
-            PanelType.Dashboard => new DashboardPanelModel { Title = $"Dashboard {_panels.Count + 1}" },
-            PanelType.Table     => new TablePanelModel { Title = $"Table {_panels.Count + 1}" },
-            _                   => new PanelModel { Title = $"Panel {_panels.Count + 1}", PanelType = type }
+            PanelType.Grid      => new GridPanelModel(),
+            PanelType.Dashboard => new DashboardPanelModel(),
+            PanelType.Table     => new TablePanelModel(),
+            PanelType.Console   => new ConsolePanelModel(),
+            PanelType.Numeric   => new NumericPanelModel(),
+            PanelType.DateTime  => new DateTimePanelModel(),
+            _                   => new NumericPanelModel(),
         };
         _panels.Add(panel);
         if (panel is GridPanelModel)
@@ -126,17 +137,20 @@
             _dashboardRefs[panel.Id] = null;
         else if (panel is TablePanelModel)
             _tableRefs[panel.Id] = null;
+        else if (panel is ConsolePanelModel)
+            _consoleRefs[panel.Id] = null;
         else
-            _panelRefs[panel.Id] = null;
+            _graphPanelRefs[panel.Id] = null;
     }
 
     private void RemovePanel(PanelModel panel)
     {
         _panels.Remove(panel);
-        _panelRefs.Remove(panel.Id);
+        _graphPanelRefs.Remove(panel.Id);
         _gridPanelRefs.Remove(panel.Id);
         _dashboardRefs.Remove(panel.Id);
         _tableRefs.Remove(panel.Id);
+        _consoleRefs.Remove(panel.Id);
     }
 
     /// <summary>Replaces a top-level panel with an empty slot (used as drag source callback).</summary>
@@ -144,13 +158,14 @@
     {
         var idx = _panels.IndexOf(panel);
         if (idx < 0) return;
-        _panelRefs.Remove(panel.Id);
+        _graphPanelRefs.Remove(panel.Id);
         _gridPanelRefs.Remove(panel.Id);
         _dashboardRefs.Remove(panel.Id);
         _tableRefs.Remove(panel.Id);
-        var empty = new PanelModel { PanelType = PanelType.Empty };
+        _consoleRefs.Remove(panel.Id);
+        var empty = new EmptyPanelModel();
         _panels[idx] = empty;
-        _panelRefs[empty.Id] = null;
+        _graphPanelRefs[empty.Id] = null;
         StateHasChanged();
     }
 
@@ -159,15 +174,17 @@
     {
         var idx = _panels.IndexOf(emptyPanel);
         if (idx < 0) return;
-        _panelRefs.Remove(emptyPanel.Id);
+        _graphPanelRefs.Remove(emptyPanel.Id);
         _gridPanelRefs.Remove(emptyPanel.Id);
         _dashboardRefs.Remove(emptyPanel.Id);
         _tableRefs.Remove(emptyPanel.Id);
+        _consoleRefs.Remove(emptyPanel.Id);
         _panels[idx] = droppedPanel;
         if (droppedPanel is GridPanelModel) _gridPanelRefs[droppedPanel.Id] = null;
         else if (droppedPanel is DashboardPanelModel) _dashboardRefs[droppedPanel.Id] = null;
         else if (droppedPanel is TablePanelModel) _tableRefs[droppedPanel.Id] = null;
-        else _panelRefs[droppedPanel.Id] = null;
+        else if (droppedPanel is ConsolePanelModel) _consoleRefs[droppedPanel.Id] = null;
+        else _graphPanelRefs[droppedPanel.Id] = null;
         StateHasChanged();
     }
 
@@ -176,17 +193,21 @@
         var index = _panels.IndexOf(oldPanel);
         if (index < 0) return;
 
-        _panelRefs.Remove(oldPanel.Id);
+        _graphPanelRefs.Remove(oldPanel.Id);
         _gridPanelRefs.Remove(oldPanel.Id);
         _dashboardRefs.Remove(oldPanel.Id);
         _tableRefs.Remove(oldPanel.Id);
+        _consoleRefs.Remove(oldPanel.Id);
 
         PanelModel newPanel = newType switch
         {
-            PanelType.Grid      => new GridPanelModel { Title = $"Grid {_panels.Count}" },
-            PanelType.Dashboard => new DashboardPanelModel { Title = $"Dashboard {_panels.Count}" },
-            PanelType.Table     => new TablePanelModel { Title = $"Table {_panels.Count}" },
-            _                   => new PanelModel { Title = $"Panel {_panels.Count}", PanelType = newType }
+            PanelType.Grid      => new GridPanelModel(),
+            PanelType.Dashboard => new DashboardPanelModel(),
+            PanelType.Table     => new TablePanelModel(),
+            PanelType.Console   => new ConsolePanelModel(),
+            PanelType.Numeric   => new NumericPanelModel(),
+            PanelType.DateTime  => new DateTimePanelModel(),
+            _                   => new NumericPanelModel(),
         };
 
         _panels[index] = newPanel;
@@ -196,8 +217,10 @@
             _dashboardRefs[newPanel.Id] = null;
         else if (newPanel is TablePanelModel)
             _tableRefs[newPanel.Id] = null;
+        else if (newPanel is ConsolePanelModel)
+            _consoleRefs[newPanel.Id] = null;
         else
-            _panelRefs[newPanel.Id] = null;
+            _graphPanelRefs[newPanel.Id] = null;
     }
 
     /// Ensures every current panel has an entry in the refs dict (needed before first render).
@@ -211,8 +234,10 @@
                 _dashboardRefs.TryAdd(p.Id, null);
             else if (p is TablePanelModel)
                 _tableRefs.TryAdd(p.Id, null);
+            else if (p is ConsolePanelModel)
+                _consoleRefs.TryAdd(p.Id, null);
             else
-                _panelRefs.TryAdd(p.Id, null);
+                _graphPanelRefs.TryAdd(p.Id, null);
         }
     }
 
@@ -229,14 +254,16 @@
                 panels.Add(dashRef.CaptureSnapshot());
             else if (panel is TablePanelModel && _tableRefs.TryGetValue(panel.Id, out var tableRef) && tableRef is not null)
                 panels.Add(tableRef.CaptureSnapshot());
-            else if (_panelRefs.TryGetValue(panel.Id, out var panelRef) && panelRef is not null)
-                panels.Add(await panelRef.CaptureSnapshotAsync());
+            else if (panel is ConsolePanelModel && _consoleRefs.TryGetValue(panel.Id, out var consoleRef) && consoleRef is not null)
+                panels.Add(consoleRef.CaptureSnapshot());
+            else if (_graphPanelRefs.TryGetValue(panel.Id, out var graphPanelRef) && graphPanelRef is not null)
+                panels.Add(await graphPanelRef.CaptureSnapshotAsync());
             else
                 panels.Add(panel.ToSnapshot());
         }
         return new AppSnapshot
         {
-            Version = "1.2",
+            Version = "1.3",
             Panels = panels,
             Preferences = _prefs,
         };
@@ -251,9 +278,11 @@
         PrefsService.Apply(_prefs);
 
         _panels.Clear();
-        _panelRefs.Clear();
+        _graphPanelRefs.Clear();
         _gridPanelRefs.Clear();
         _dashboardRefs.Clear();
+        _tableRefs.Clear();
+        _consoleRefs.Clear();
 
         foreach (var panelSnap in snapshot.Panels)
             _panels.Add(PanelModel.FromSnapshot(panelSnap));
@@ -290,13 +319,16 @@
                 continue;
             }
 
-            if (!_panelRefs.TryGetValue(panel.Id, out var panelRef) || panelRef is null) continue;
+            // Console panels need no data refresh — state is restored from snapshot
+            if (panel is ConsolePanelModel) continue;
 
-            await panelRef.RefreshAsync();
+            if (!_graphPanelRefs.TryGetValue(panel.Id, out var graphPanelRef) || graphPanelRef is null) continue;
+
+            await graphPanelRef.RefreshAsync();
 
             var viewRect = snapshot.Panels[i].ViewRect;
             if (viewRect is not null)
-                await panelRef.SetViewRect(viewRect);
+                await graphPanelRef.SetViewRect(viewRect);
         }
     }
 

@@ -34,6 +34,11 @@ public class PanelSnapshot
     /// </summary>
     public ViewRect? ViewRect { get; set; }
 
+    // ── Graph-panel specific (Numeric, DateTime) ─────────────────────────────
+
+    public bool GraphAutoRefreshEnabled { get; set; }
+    public string? GraphAutoRefreshInterval { get; set; }
+
     // ── Grid-panel specific ──────────────────────────────────────────────────
 
     /// <summary>Number of columns in a Grid panel. Ignored for non-Grid panels.</summary>
@@ -64,4 +69,21 @@ public class PanelSnapshot
     public string? TableCommand { get; set; }
     public bool TableAutoRefreshEnabled { get; set; }
     public string? TableAutoRefreshInterval { get; set; }
+
+    // ── Console-panel specific ───────────────────────────────────────────────
+
+    /// <summary>Full console output log (input + output lines).</summary>
+    public List<ConsoleLineSnapshot> ConsoleLog { get; set; } = new();
+
+    /// <summary>Command history entries (newest at end).</summary>
+    public List<string> ConsoleHistory { get; set; } = new();
+
+    /// <summary>Current in-progress input text.</summary>
+    public string? ConsoleCurrentInput { get; set; }
+
+    /// <summary>Command prefix appended to every command.</summary>
+    public string? ConsoleCommandPrefix { get; set; }
+
+    /// <summary>Whether the command prefix editor is visible.</summary>
+    public bool ConsoleShowCommandPrefix { get; set; }
 }

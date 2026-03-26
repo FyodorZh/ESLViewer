@@ -59,7 +59,14 @@
                             OnReplaceWithEmpty="ReplaceCellWithEmpty"
                             @ref="_tableCellRefs[tableCell.Id]" />
             }
-            else if (currentCell.PanelType == PanelType.Empty)
+            else if (currentCell is ConsolePanelModel consoleCell)
+            {
+                <ConsolePanel Model="consoleCell"
+                              OnRemove="m => ReplaceCellWithEmpty(m)"
+                              OnReplaceWithEmpty="ReplaceCellWithEmpty"
+                              @ref="_consoleCellRefs[consoleCell.Id]" />
+            }
+            else if (currentCell is EmptyPanelModel)
             {
                 <EmptyPanel Model="currentCell"
                             OnRemove="m => ReplaceCellWithEmpty(m)"
@@ -67,12 +74,12 @@
                             OnDropPanel="model => HandleCellDrop(currentCell, model)"
                             DisableDrop="@(IsBeingDragged || DisableAllDrops)" />
             }
-            else
+            else if (currentCell is GraphPanelModel graphCell)
             {
-                <Panel Model="currentCell"
-                       OnRemove="m => ReplaceCellWithEmpty(m)"
-                       OnReplaceWithEmpty="ReplaceCellWithEmpty"
-                       @ref="_cellRefs[currentCell.Id]" />
+                <GraphPanel Model="graphCell"
+                            OnRemove="m => ReplaceCellWithEmpty(m)"
+                            OnReplaceWithEmpty="ReplaceCellWithEmpty"
+                            @ref="_graphCellRefs[graphCell.Id]" />
             }
         }
     </div>
@@ -88,10 +95,11 @@
     /// </summary>
     [Parameter] public bool DisableAllDrops { get; set; }
 
-    private Dictionary<Guid, Panel?> _cellRefs = new();
+    private Dictionary<Guid, GraphPanel?> _graphCellRefs = new();
     private Dictionary<Guid, GridPanel?> _gridCellRefs = new();
     private Dictionary<Guid, DashboardPanel?> _dashboardCellRefs = new();
     private Dictionary<Guid, TablePanel?> _tableCellRefs = new();
+    private Dictionary<Guid, ConsolePanel?> _consoleCellRefs = new();
 
     private DotNetObjectReference<GridPanel>? _dotNetRef;
 
@@ -123,7 +131,8 @@
                 if (cell is GridPanelModel g) _gridCellRefs.TryAdd(g.Id, null);
                 else if (cell is DashboardPanelModel d) _dashboardCellRefs.TryAdd(d.Id, null);
                 else if (cell is TablePanelModel t) _tableCellRefs.TryAdd(t.Id, null);
-                else _cellRefs.TryAdd(cell.Id, null);
+                else if (cell is ConsolePanelModel c) _consoleCellRefs.TryAdd(c.Id, null);
+                else _graphCellRefs.TryAdd(cell.Id, null);
             }
         }
         await InitResizersAsync();
@@ -200,23 +209,29 @@
         var idx = Model.Cells.IndexOf(oldCell);
         if (idx < 0) return;
 
-        _cellRefs.Remove(oldCell.Id);
+        _graphCellRefs.Remove(oldCell.Id);
         _gridCellRefs.Remove(oldCell.Id);
         _dashboardCellRefs.Remove(oldCell.Id);
+        _tableCellRefs.Remove(oldCell.Id);
+        _consoleCellRefs.Remove(oldCell.Id);
 
         PanelModel newCell = type switch
         {
             PanelType.Grid      => new GridPanelModel(),
             PanelType.Dashboard => new DashboardPanelModel(),
             PanelType.Table     => new TablePanelModel(),
-            _                   => new PanelModel { Title = "Panel", PanelType = type }
+            PanelType.Numeric   => new NumericPanelModel(),
+            PanelType.DateTime  => new DateTimePanelModel(),
+            PanelType.Console   => new ConsolePanelModel(),
+            _                   => throw new ArgumentOutOfRangeException(nameof(type))
         };
 
         Model.Cells[idx] = newCell;
         if (newCell is GridPanelModel ng) _gridCellRefs[ng.Id] = null;
         else if (newCell is DashboardPanelModel nd) _dashboardCellRefs[nd.Id] = null;
         else if (newCell is TablePanelModel nt) _tableCellRefs[nt.Id] = null;
-        else _cellRefs[newCell.Id] = null;
+        else if (newCell is ConsolePanelModel nc) _consoleCellRefs[nc.Id] = null;
+        else _graphCellRefs[newCell.Id] = null;
         StateHasChanged();
     }
 
@@ -226,13 +241,14 @@
         var idx = Model.Cells.IndexOf(model);
         if (idx < 0) return;
 
-        _cellRefs.Remove(model.Id);
+        _graphCellRefs.Remove(model.Id);
         _gridCellRefs.Remove(model.Id);
         _dashboardCellRefs.Remove(model.Id);
         _tableCellRefs.Remove(model.Id);
-        var empty = new PanelModel { PanelType = PanelType.Empty, CanBeClosed = false };
+        _consoleCellRefs.Remove(model.Id);
+        var empty = new EmptyPanelModel { CanBeClosed = false };
         Model.Cells[idx] = empty;
-        _cellRefs[empty.Id] = null;
+        _graphCellRefs[empty.Id] = null;
         StateHasChanged();
     }
 
@@ -242,30 +258,34 @@
         var idx = Model.Cells.IndexOf(emptyCell);
         if (idx < 0) return;
 
-        _cellRefs.Remove(emptyCell.Id);
+        _graphCellRefs.Remove(emptyCell.Id);
         _gridCellRefs.Remove(emptyCell.Id);
         _dashboardCellRefs.Remove(emptyCell.Id);
         _tableCellRefs.Remove(emptyCell.Id);
+        _consoleCellRefs.Remove(emptyCell.Id);
 
         Model.Cells[idx] = droppedPanel;
         if (droppedPanel is GridPanelModel dg) _gridCellRefs[dg.Id] = null;
         else if (droppedPanel is DashboardPanelModel dd) _dashboardCellRefs[dd.Id] = null;
         else if (droppedPanel is TablePanelModel dt) _tableCellRefs[dt.Id] = null;
-        else _cellRefs[droppedPanel.Id] = null;
+        else if (droppedPanel is ConsolePanelModel dc) _consoleCellRefs[dc.Id] = null;
+        else _graphCellRefs[droppedPanel.Id] = null;
         StateHasChanged();
     }
 
     private void CleanupStaleRefs()
     {
         var ids = Model.Cells.Select(c => c.Id).ToHashSet();
-        foreach (var key in _cellRefs.Keys.ToList())
-            if (!ids.Contains(key)) _cellRefs.Remove(key);
+        foreach (var key in _graphCellRefs.Keys.ToList())
+            if (!ids.Contains(key)) _graphCellRefs.Remove(key);
         foreach (var key in _gridCellRefs.Keys.ToList())
             if (!ids.Contains(key)) _gridCellRefs.Remove(key);
         foreach (var key in _dashboardCellRefs.Keys.ToList())
             if (!ids.Contains(key)) _dashboardCellRefs.Remove(key);
         foreach (var key in _tableCellRefs.Keys.ToList())
             if (!ids.Contains(key)) _tableCellRefs.Remove(key);
+        foreach (var key in _consoleCellRefs.Keys.ToList())
+            if (!ids.Contains(key)) _consoleCellRefs.Remove(key);
     }
 
     // ── Drag ──────────────────────────────────────────────────────────────────
@@ -285,7 +305,7 @@
     /// <summary>Refresh all nested data panels (and nested grids) recursively.</summary>
     public async Task RefreshAllAsync()
     {
-        foreach (var (_, panelRef) in _cellRefs)
+        foreach (var (_, panelRef) in _graphCellRefs)
             if (panelRef is not null) await panelRef.RefreshAsync();
         foreach (var (_, gridRef) in _gridCellRefs)
             if (gridRef is not null) await gridRef.RefreshAllAsync();
@@ -308,8 +328,10 @@
                 snapshot.GridCells[i] = dashRef.CaptureSnapshot();
             else if (cell is TablePanelModel && _tableCellRefs.TryGetValue(cell.Id, out var tableRef) && tableRef is not null)
                 snapshot.GridCells[i] = tableRef.CaptureSnapshot();
-            else if (cell.PanelType != PanelType.Empty && _cellRefs.TryGetValue(cell.Id, out var panelRef) && panelRef is not null)
-                snapshot.GridCells[i] = await panelRef.CaptureSnapshotAsync();
+            else if (cell is ConsolePanelModel && _consoleCellRefs.TryGetValue(cell.Id, out var consoleRef) && consoleRef is not null)
+                snapshot.GridCells[i] = consoleRef.CaptureSnapshot();
+            else if (cell.PanelType != PanelType.Empty && _graphCellRefs.TryGetValue(cell.Id, out var graphPanelRef) && graphPanelRef is not null)
+                snapshot.GridCells[i] = await graphPanelRef.CaptureSnapshotAsync();
         }
         return snapshot;
     }

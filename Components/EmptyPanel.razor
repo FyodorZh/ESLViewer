@@ -42,6 +42,11 @@
                         📊 Table
                     </button>
                 </li>
+                <li>
+                    <button class="dropdown-item" @onclick='() => ReplaceWith(PanelType.Console)'>
+                        🖥 Console
+                    </button>
+                </li>
                 @if (Model.CanBeClosed)
                 {
                     <li><hr class="dropdown-divider" /></li>

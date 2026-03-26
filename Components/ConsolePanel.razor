@@ -1,0 +1,210 @@
+@using ESLViewer.Models
+@inject MathServerService MathServer
+@inject DragDropService DragDrop
+@inject IJSRuntime JS
+@implements IAsyncDisposable
+
+<div class="panel console-panel">
+    <div class="panel-header">
+        <span class="drag-handle" draggable="true"
+              @ondragstart="OnDragStart" @ondragend="OnDragEnd"
+              title="Drag to move panel">⠿</span>
+        <input class="panel-title-input" type="text" @bind="Model.Title" @bind:event="oninput" />
+        <span class="panel-header-spacer"></span>
+        <button class="panel-header-btn" title="Clear command history" @onclick="ClearHistory">Clear History</button>
+        <button class="panel-header-btn" title="Clear console output" @onclick="ClearConsole">Clear Console</button>
+        <span class="panel-type-badge">Console</span>
+        <button class="btn-icon" title="Include" @onclick="ToggleInclude">&#x2699;</button>
+        <button class="btn-icon btn-danger" title="Remove panel" @onclick="() => OnRemove.InvokeAsync(Model)">&#x2715;</button>
+    </div>
+
+    @if (_showInclude)
+    {
+        <div class="dashboard-setup-panel">
+            <div class="dashboard-setup-row">
+                <label class="dashboard-setup-label">Include</label>
+                <textarea class="dashboard-command-input expr-input"
+                          placeholder="Text prepended to each command…"
+                          @bind="Model.CommandPrefix"
+                          @bind:event="oninput"></textarea>
+            </div>
+        </div>
+    }
+
+    <div class="console-output">
+        @foreach (var line in ((IEnumerable<ConsoleLine>)Model.ConsoleLog).Reverse())
+        {
+            if (line.IsInput)
+            {
+                <div class="console-line console-line-input"><span class="console-prompt">$ </span>@line.Text</div>
+            }
+            else
+            {
+                <div class="console-line console-line-output">@line.Text</div>
+            }
+        }
+    </div>
+
+    <div class="console-command-wrapper">
+        <textarea class="console-command-input"
+                  placeholder="Enter command… (Shift+Enter for new line)"
+                  @bind="_currentInput"
+                  @bind:event="oninput"
+                  @onkeydown="OnInputKeyDown"
+                  rows="1"></textarea>
+    </div>
+</div>
+
+@code {
+    [Parameter] public ConsolePanelModel Model { get; set; } = default!;
+    [Parameter] public EventCallback<PanelModel> OnRemove { get; set; }
+    [Parameter] public EventCallback<PanelModel> OnReplaceWithEmpty { get; set; }
+
+    private bool _showInclude;
+    private string _currentInput = string.Empty;
+    private int _historyIndex = -1;      // -1 = not browsing history
+    private string _savedInput = string.Empty;
+
+    protected override void OnInitialized()
+    {
+        _currentInput = Model.CurrentInput;
+        _showInclude = Model.ShowCommandPrefix;
+    }
+
+    private void ToggleInclude()
+    {
+        _showInclude = !_showInclude;
+        Model.ShowCommandPrefix = _showInclude;
+    }
+
+    // ── Input handling ────────────────────────────────────────────────────────
+
+    private async Task OnInputKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !e.ShiftKey)
+        {
+            await SubmitCommandAsync();
+        }
+        else if (e.Key == "ArrowUp")
+        {
+            NavigateHistory(-1);
+        }
+        else if (e.Key == "ArrowDown")
+        {
+            NavigateHistory(1);
+        }
+        else
+        {
+            // Any other key: leave history-browsing mode
+            if (e.Key.Length == 1)
+                _historyIndex = -1;
+        }
+    }
+
+    private void NavigateHistory(int direction)
+    {
+        if (Model.CommandHistory.Count == 0) return;
+
+        if (_historyIndex == -1)
+        {
+            if (direction < 0) // Up — start browsing from newest
+            {
+                _savedInput = _currentInput;
+                _historyIndex = Model.CommandHistory.Count - 1;
+            }
+            // Down when not browsing: do nothing
+            return;
+        }
+
+        _historyIndex += direction;
+
+        if (_historyIndex < 0)
+        {
+            _historyIndex = 0;
+        }
+        else if (_historyIndex >= Model.CommandHistory.Count)
+        {
+            // Went past newest — restore original input
+            _historyIndex = -1;
+            _currentInput = _savedInput;
+            return;
+        }
+
+        _currentInput = Model.CommandHistory[_historyIndex];
+    }
+
+    private async Task SubmitCommandAsync()
+    {
+        var input = _currentInput.Trim();
+        if (string.IsNullOrEmpty(input)) return;
+
+        // Reset history navigation state
+        _historyIndex = -1;
+        _savedInput = string.Empty;
+
+        // Add to history (avoid duplicate at end)
+        if (Model.CommandHistory.Count == 0 || Model.CommandHistory[^1] != input)
+            Model.CommandHistory.Add(input);
+
+        // Clear input immediately and re-render so the textarea empties
+        _currentInput = string.Empty;
+        Model.CurrentInput = string.Empty;
+        StateHasChanged();
+
+        // Build command (prepend Include prefix if configured)
+        var commandToSend = string.IsNullOrWhiteSpace(Model.CommandPrefix)
+            ? input
+            : Model.CommandPrefix.TrimEnd() + ";" + input;
+
+        // Echo the command to the console log
+        Model.ConsoleLog.Add(new ConsoleLine(input, true));
+
+        // Call the backend
+        var result = await MathServer.EvaluateRawAsync(commandToSend);
+
+        // Append output lines
+        if (!string.IsNullOrEmpty(result))
+        {
+            foreach (var line in result.Split('\n'))
+                Model.ConsoleLog.Add(new ConsoleLine(line, false));
+        }
+
+        StateHasChanged();
+    }
+
+    // ── Toolbar actions ───────────────────────────────────────────────────────
+
+    private void ClearHistory()
+    {
+        Model.CommandHistory.Clear();
+        _historyIndex = -1;
+    }
+
+    private void ClearConsole()
+    {
+        Model.ConsoleLog.Clear();
+    }
+
+    // ── Snapshot ──────────────────────────────────────────────────────────────
+
+    public PanelSnapshot CaptureSnapshot()
+    {
+        Model.CurrentInput = _currentInput;
+        Model.ShowCommandPrefix = _showInclude;
+        return Model.ToSnapshot();
+    }
+
+    // ── Drag ──────────────────────────────────────────────────────────────────
+
+    private void OnDragStart()
+        => DragDrop.StartDrag(Model, () => OnReplaceWithEmpty.InvokeAsync(Model));
+
+    private void OnDragEnd()
+    {
+        if (DragDrop.IsDragging) DragDrop.Cancel();
+    }
+
+    // ── IAsyncDisposable ──────────────────────────────────────────────────────
+
+    public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+}

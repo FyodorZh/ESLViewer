@@ -11,8 +11,8 @@ public class AppSnapshot
 {
     public AppSnapshot() { }
 
-    /// <summary>Format version. Current: "1.2".</summary>
-    public string Version { get; set; } = "1.2";
+    /// <summary>Format version. Current: "1.3".</summary>
+    public string Version { get; set; } = "1.3";
 
     public List<PanelSnapshot> Panels { get; set; } = new();
 

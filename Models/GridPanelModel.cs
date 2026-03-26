@@ -34,9 +34,9 @@ public class GridPanelModel : PanelModel
     public GridPanelModel()
     {
         PanelType = PanelType.Grid;
-        Title = "Grid Panel";
+        Title = "Grid";
         // Start with one empty (non-closable) cell
-        Cells.Add(new PanelModel { PanelType = PanelType.Empty, CanBeClosed = false });
+        Cells.Add(new EmptyPanelModel { CanBeClosed = false });
     }
 
     public PanelModel GetCell(int row, int col) => Cells[row * XSize + col];
@@ -50,7 +50,7 @@ public class GridPanelModel : PanelModel
         {
             for (int col = 0; col < XSize; col++)
                 newCells.Add(Cells[row * XSize + col]);
-            newCells.Add(new PanelModel { PanelType = PanelType.Empty, CanBeClosed = false });
+            newCells.Add(new EmptyPanelModel { CanBeClosed = false });
         }
         Cells = newCells;
         XSize++;
@@ -63,7 +63,7 @@ public class GridPanelModel : PanelModel
     public void AddRow()
     {
         for (int col = 0; col < XSize; col++)
-            Cells.Add(new PanelModel { PanelType = PanelType.Empty, CanBeClosed = false });
+            Cells.Add(new EmptyPanelModel { CanBeClosed = false });
         YSize++;
         var fracs = GetRowFractions().ToList();
         fracs.Add(fracs.Count > 0 ? fracs.Average() : 1.0);
@@ -160,7 +160,7 @@ public class GridPanelModel : PanelModel
 
         // Pad with empty cells if snapshot is incomplete
         while (model.Cells.Count < model.XSize * model.YSize)
-            model.Cells.Add(new PanelModel { PanelType = PanelType.Empty, CanBeClosed = false });
+            model.Cells.Add(new EmptyPanelModel { CanBeClosed = false });
 
         return model;
     }

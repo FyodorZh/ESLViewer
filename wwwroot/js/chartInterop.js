@@ -1,5 +1,10 @@
 window.ESLViewer = window.ESLViewer || {};
 
+// Scroll a DOM element to its bottom (used by ConsolePanel)
+window.scrollElementToBottom = function (element) {
+    if (element) { element.scrollTop = element.scrollHeight; }
+};
+
 // ─── Chart axis range ────────────────────────────────────────────────────────
 
 window.ESLViewer.getChartAxisRange = function (chartElementId) {
@@ -30,6 +35,26 @@ window.ESLViewer.setChartAxisRange = function (chartElementId, xMin, xMax, yMin,
     try {
         if (xMin !== null && xMax !== null) chart.zoomX(xMin, xMax);
         if (yMin !== null && yMax !== null) chart.updateOptions({ yaxis: { min: yMin, max: yMax } }, false, false);
+    } catch (e) { }
+};
+
+/**
+ * Patches the dynamicAnimation.enabled flag on the live ApexChart instance.
+ * Must be called before RenderAsync / updateSeries to take effect.
+ */
+window.ESLViewer.setChartAnimation = function (chartElementId, enabled) {
+    const el = document.getElementById(chartElementId);
+    if (!el) return;
+    const instances = window.Apex && window.Apex._chartInstances;
+    if (!instances || instances.length === 0) return;
+    const entry = instances.find(function (i) { return el.contains(i.chart.el); });
+    if (!entry) return;
+    try {
+        const w = entry.chart.w;
+        if (w && w.config && w.config.chart && w.config.chart.animations) {
+            w.config.chart.animations.dynamicAnimation = w.config.chart.animations.dynamicAnimation || {};
+            w.config.chart.animations.dynamicAnimation.enabled = enabled;
+        }
     } catch (e) { }
 };
 
@@ -290,5 +315,88 @@ window.ESLViewer.initFixedDropdown = function (elementId) {
             return Object.assign({}, defaultConfig, { strategy: 'fixed' });
         }
     });
+};
+
+// ─── Console Panel helpers ────────────────────────────────────────────────────
+
+/** Scrolls a DOM element to its bottom. Accepts element reference or element id. */
+window.ESLViewer.scrollToBottom = function (elementOrId) {
+    const el = typeof elementOrId === 'string' ? document.getElementById(elementOrId) : elementOrId;
+    if (!el) return;
+    el.scrollTop = el.scrollHeight;
+};
+
+/** Sets an input/textarea element's value directly (used after preventing default). */
+window.ESLViewer.setElementValue = function (elementId, value) {
+    const el = document.getElementById(elementId);
+    if (!el) return;
+    el.value = value;
+};
+
+/**
+ * Wires up special keyboard handling for a console input textarea.
+ * Enter (no Shift) → prevent default + call dotNetRef.HandleConsoleKey('enter')
+ * ArrowUp          → prevent default + call dotNetRef.HandleConsoleKey('arrowup')
+ * ArrowDown        → prevent default + call dotNetRef.HandleConsoleKey('arrowdown')
+ */
+window.ESLViewer.initConsoleInput = function (elementId, dotNetRef) {
+    const el = document.getElementById(elementId);
+    if (!el) return;
+
+    // Clean up previous listener if re-initialised
+    if (el._eslConsoleCleanup) el._eslConsoleCleanup();
+
+    function onKeyDown(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            dotNetRef.invokeMethodAsync('HandleConsoleKey', 'enter').catch(function () { });
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            dotNetRef.invokeMethodAsync('HandleConsoleKey', 'arrowup').catch(function () { });
+        } else if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            dotNetRef.invokeMethodAsync('HandleConsoleKey', 'arrowdown').catch(function () { });
+        }
+    }
+
+    el.addEventListener('keydown', onKeyDown);
+    el._eslConsoleCleanup = function () { el.removeEventListener('keydown', onKeyDown); };
+};
+
+/**
+ * Attaches a drag-to-resize handle to the bottom of a textarea.
+ * Dragging the resizer div changes the textarea height.
+ * @param {string} textareaId  id of the textarea element
+ * @param {string} resizerId   id of the resizer strip element
+ */
+window.ESLViewer.initBottomResizer = function (textareaId, resizerId) {
+    const textarea = document.getElementById(textareaId);
+    const resizer = document.getElementById(resizerId);
+    if (!textarea || !resizer) return;
+
+    if (resizer._eslCleanup) resizer._eslCleanup();
+
+    function onDown(e) {
+        e.preventDefault();
+        resizer.setPointerCapture(e.pointerId);
+        const startY = e.clientY;
+        const startHeight = textarea.offsetHeight;
+
+        function onMove(ev) {
+            const newHeight = Math.max(20, startHeight + (ev.clientY - startY));
+            textarea.style.height = newHeight + 'px';
+        }
+
+        function onUp() {
+            resizer.removeEventListener('pointermove', onMove);
+            resizer.removeEventListener('pointerup', onUp);
+        }
+
+        resizer.addEventListener('pointermove', onMove);
+        resizer.addEventListener('pointerup', onUp);
+    }
+
+    resizer.addEventListener('pointerdown', onDown);
+    resizer._eslCleanup = function () { resizer.removeEventListener('pointerdown', onDown); };
 };
 

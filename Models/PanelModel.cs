@@ -2,12 +2,11 @@ using ESLViewer.Models.State;
 
 namespace ESLViewer.Models;
 
-public class PanelModel
+public abstract class PanelModel
 {
     public Guid Id { get; set; } = Guid.NewGuid();
-    public string Title { get; set; } = "New Panel";
-    public PanelType PanelType { get; set; } = PanelType.Numeric;
-    public List<ExpressionModel> Expressions { get; set; } = new();
+    public string Title { get; set; } = string.Empty;
+    public PanelType PanelType { get; set; }
 
     /// <summary>
     /// Controls whether the close (×) button is shown on an EmptyPanel.
@@ -31,7 +30,6 @@ public class PanelModel
     {
         Title = Title,
         PanelType = PanelType.ToString(),
-        Expressions = Expressions.Select(e => e.ToSnapshot()).ToList(),
         CanBeClosed = CanBeClosed,
         MinWidth = MinWidth,
         MinHeight = MinHeight,
@@ -39,34 +37,18 @@ public class PanelModel
     };
 
     /// <summary>
-    /// Constructs a new PanelModel from a snapshot.
+    /// Constructs a concrete PanelModel from a snapshot.
     /// All expressions are restored with empty Points lists — data is re-fetched after restore.
     /// </summary>
-    public static PanelModel FromSnapshot(PanelSnapshot snapshot)
+    public static PanelModel FromSnapshot(PanelSnapshot snapshot) => snapshot.PanelType switch
     {
-        if (snapshot.PanelType == "Grid")
-            return GridPanelModel.FromGridSnapshot(snapshot);
-
-        if (snapshot.PanelType == "Dashboard")
-            return DashboardPanelModel.FromDashboardSnapshot(snapshot);
-
-        if (snapshot.PanelType == "Table")
-            return TablePanelModel.FromTableSnapshot(snapshot);
-
-        var model = new PanelModel
-        {
-            Title = snapshot.Title,
-            PanelType = Enum.TryParse<PanelType>(snapshot.PanelType, out var pt) ? pt : PanelType.Numeric,
-            CanBeClosed = snapshot.CanBeClosed,
-            MinWidth = snapshot.MinWidth,
-            MinHeight = snapshot.MinHeight,
-        };
-        foreach (var exprSnap in snapshot.Expressions)
-        {
-            var expr = new ExpressionModel();
-            expr.ApplySnapshot(exprSnap);
-            model.Expressions.Add(expr);
-        }
-        return model;
-    }
+        "Grid"      => GridPanelModel.FromGridSnapshot(snapshot),
+        "Dashboard" => DashboardPanelModel.FromDashboardSnapshot(snapshot),
+        "Table"     => TablePanelModel.FromTableSnapshot(snapshot),
+        "Console"   => ConsolePanelModel.FromConsoleSnapshot(snapshot),
+        "Numeric"   => NumericPanelModel.FromSnapshot(snapshot),
+        "DateTime"  => DateTimePanelModel.FromSnapshot(snapshot),
+        "Empty"     => new EmptyPanelModel { CanBeClosed = snapshot.CanBeClosed },
+        _           => NumericPanelModel.FromSnapshot(snapshot), // legacy fallback
+    };
 }
